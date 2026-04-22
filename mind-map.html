@@ -1,0 +1,1700 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>思维导图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #ffffff;
+            color: #333333;
+            overflow: auto;
+        }
+        
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background-color: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        
+        .toolbar button {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .toolbar button:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .toolbar button:active {
+            background-color: #d9d9d9;
+        }
+        
+        .toolbar button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .toolbar button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+        }
+        
+        .toolbar button.danger {
+            background-color: #ff4d4f;
+            border-color: #ff4d4f;
+            color: #ffffff;
+        }
+        
+        .toolbar button.danger:hover {
+            background-color: #ff7875;
+            border-color: #ff7875;
+        }
+        
+        .toolbar select {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+        
+        .toolbar input[type="text"] {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            min-width: 150px;
+        }
+        
+        .mind-map-container {
+            margin-top: 60px;
+            padding: 20px;
+            min-height: calc(100vh - 60px);
+            position: relative;
+            overflow: visible;
+        }
+        
+        .mind-map {
+            position: relative;
+            min-width: 100%;
+            min-height: 100%;
+        }
+        
+        .node {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+            z-index: 10;
+        }
+        
+        .node:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .node.selected {
+            background-color: #e6f7ff;
+            border: 1px solid #1890ff;
+        }
+        
+        .node-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .node-checkbox.checked {
+            background-color: #52c41a;
+            border-color: #52c41a;
+        }
+        
+        .node-content {
+            line-height: 1.5;
+            outline: none;
+            min-width: 20px;
+            min-height: 1.5em;
+            cursor: text;
+        }
+        
+        .node-content:focus {
+            background-color: #ffffff;
+            padding: 2px 4px;
+            border-radius: 2px;
+            outline: 1px solid #1890ff;
+        }
+        
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .connection-line {
+            stroke: #333333;
+            stroke-width: 1.5;
+            fill: none;
+        }
+        
+        .layout-selector,
+        .connection-style-selector,
+        .font-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .layout-selector label,
+        .connection-style-selector label,
+        .font-selector label {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+        }
+        
+        .empty-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #999999;
+            text-align: center;
+        }
+        
+        .context-menu {
+            position: fixed;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 2000;
+            min-width: 120px;
+            display: none;
+        }
+        
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        .context-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .context-menu-item.delete-item {
+            color: #ff4d4f;
+        }
+        
+        .context-menu-item.delete-item:hover {
+            background-color: #fff2f0;
+        }
+        
+        .sidebar {
+            position: fixed;
+            top: 50px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 50px);
+            background-color: #fafafa;
+            border-right: 1px solid #e0e0e0;
+            z-index: 999;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .sidebar.show {
+            display: block;
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .sidebar-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .sidebar-close:hover {
+            color: #333;
+        }
+        
+        .mindmap-list {
+            padding: 10px;
+        }
+        
+        .mindmap-item {
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .mindmap-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .mindmap-item.active {
+            background-color: #e6f7ff;
+            border-color: #1890ff;
+        }
+        
+        .mindmap-item-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+            word-break: break-all;
+        }
+        
+        .mindmap-item-time {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .mindmap-item-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        
+        .mindmap-item-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+        
+        .mindmap-item-actions button:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .mindmap-item-actions button.delete-btn {
+            color: #ff4d4f;
+            border-color: #ff4d4f;
+        }
+        
+        .mindmap-item-actions button.delete-btn:hover {
+            background-color: #fff2f0;
+        }
+        
+        .main-content {
+            margin-left: 0;
+            transition: margin-left 0.3s;
+        }
+        
+        .main-content.with-sidebar {
+            margin-left: 250px;
+        }
+        
+        .save-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 3000;
+            padding: 20px;
+            min-width: 300px;
+            display: none;
+        }
+        
+        .save-dialog.show {
+            display: block;
+        }
+        
+        .save-dialog-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .save-dialog-content {
+            margin-bottom: 15px;
+        }
+        
+        .save-dialog-content label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .save-dialog-content input {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+        }
+        
+        .save-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .save-dialog-actions button {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+        
+        .save-dialog-actions button:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .save-dialog-actions button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .save-dialog-actions button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2999;
+            display: none;
+        }
+        
+        .overlay.show {
+            display: block;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 4000;
+            padding: 12px 20px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .notification.show {
+            display: block;
+        }
+        
+        .notification.success {
+            border-left: 4px solid #52c41a;
+        }
+        
+        .notification.error {
+            border-left: 4px solid #ff4d4f;
+        }
+        
+        .notification.info {
+            border-left: 4px solid #1890ff;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .current-mindmap-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: auto;
+        }
+        
+        .current-mindmap-info span {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .current-mindmap-info .name {
+            font-weight: 600;
+            color: #333;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .toolbar-separator {
+            width: 1px;
+            height: 24px;
+            background-color: #e0e0e0;
+            margin: 0 5px;
+        }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .connection-status.connected {
+            color: #52c41a;
+        }
+        
+        .connection-status.disconnected {
+            color: #ff4d4f;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-dot.connected {
+            background-color: #52c41a;
+        }
+        
+        .status-dot.disconnected {
+            background-color: #ff4d4f;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <div class="current-mindmap-info">
+            <span>当前：</span>
+            <span class="name" id="currentMindmapName">新思维导图</span>
+        </div>
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot disconnected" id="statusDot"></span>
+            <span id="statusText">后端未连接</span>
+            <button id="reconnectBtn" style="margin-left: 5px; padding: 2px 8px; font-size: 12px;">重试</button>
+        </div>
+        <div class="toolbar-separator"></div>
+        <button id="addCenterNode" class="primary">添加中心节点</button>
+        <button id="newMindmapBtn">新建</button>
+        <button id="saveMindmapBtn">保存</button>
+        <button id="loadMindmapBtn">加载</button>
+        <button id="deleteMindmapBtn" class="danger" style="display: none;">删除</button>
+        <div class="toolbar-separator"></div>
+        <div class="layout-selector">
+            <label for="layoutSelect">布局：</label>
+            <select id="layoutSelect">
+                <option value="right">右向布局</option>
+                <option value="tree">树状图布局</option>
+            </select>
+        </div>
+        <div class="connection-style-selector">
+            <label for="connectionStyleSelect">连线：</label>
+            <select id="connectionStyleSelect">
+                <option value="curve">曲线</option>
+                <option value="right-angle">直角</option>
+                <option value="straight">直线</option>
+            </select>
+        </div>
+        <div class="font-selector">
+            <label for="fontSelect">字体：</label>
+            <select id="fontSelect">
+                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">默认</option>
+                <option value="'Microsoft YaHei', '微软雅黑', sans-serif">微软雅黑</option>
+                <option value="'SimSun', '宋体', serif">宋体</option>
+                <option value="'KaiTi', '楷体', serif">楷体</option>
+                <option value="'SimHei', '黑体', sans-serif">黑体</option>
+                <option value="'Arial', sans-serif">Arial</option>
+                <option value="'Times New Roman', serif">Times New Roman</option>
+                <option value="'Courier New', monospace">Courier New</option>
+                <option value="'Georgia', serif">Georgia</option>
+                <option value="'Verdana', sans-serif">Verdana</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>思维导图列表</h3>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="mindmap-list" id="mindmapList">
+        </div>
+    </div>
+    
+    <div class="main-content" id="mainContent">
+        <div class="mind-map-container">
+            <div class="mind-map" id="mindMap">
+                <svg class="connections" id="connections"></svg>
+            </div>
+        </div>
+    </div>
+    
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" id="addChildMenuItem">添加子节点</div>
+        <div class="context-menu-item delete-item" id="deleteMenuItem">删除</div>
+    </div>
+    
+    <div class="save-dialog" id="saveDialog">
+        <div class="save-dialog-header">保存思维导图</div>
+        <div class="save-dialog-content">
+            <label for="mindmapNameInput">名称：</label>
+            <input type="text" id="mindmapNameInput" placeholder="请输入思维导图名称">
+        </div>
+        <div class="save-dialog-actions">
+            <button id="cancelSaveBtn">取消</button>
+            <button id="confirmSaveBtn" class="primary">保存</button>
+        </div>
+    </div>
+    
+    <div class="overlay" id="overlay"></div>
+    
+    <div class="notification" id="notification"></div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
+        class MindMap {
+            constructor() {
+                this.nodes = [];
+                this.layoutType = 'right';
+                this.connectionStyle = 'curve';
+                this.fontFamily = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+                this.nextNodeId = 1;
+                this.selectedNodeId = null;
+                this.editingNodeId = null;
+                this.contextMenuNodeId = null;
+                this.currentMindmapId = null;
+                this.currentMindmapName = '新思维导图';
+                this.mindmaps = [];
+                this.backendConnected = false;
+                
+                this.init();
+            }
+            
+            async init() {
+                try {
+                    this.bindEventListeners();
+                    await this.checkBackendConnection();
+                    if (this.backendConnected) {
+                        await this.loadMindmapsList();
+                    }
+                    this.render();
+                    console.log('MindMap initialized successfully');
+                } catch (error) {
+                    console.error('Error during initialization:', error);
+                    this.render();
+                }
+            }
+            
+            bindEventListeners() {
+                console.log('Binding event listeners...');
+                
+                document.getElementById('addCenterNode').addEventListener('click', (e) => {
+                    console.log('Add center node clicked');
+                    e.stopPropagation();
+                    this.addCenterNode();
+                });
+                
+                document.getElementById('layoutSelect').addEventListener('change', (e) => {
+                    this.layoutType = e.target.value;
+                    this.render();
+                });
+                
+                document.getElementById('connectionStyleSelect').addEventListener('change', (e) => {
+                    this.connectionStyle = e.target.value;
+                    this.render();
+                });
+                
+                document.getElementById('fontSelect').addEventListener('change', (e) => {
+                    this.fontFamily = e.target.value;
+                    this.render();
+                });
+                
+                document.getElementById('mindMap').addEventListener('click', (e) => {
+                    if (e.target.id === 'mindMap' || e.target.tagName === 'svg' || e.target.tagName === 'path') {
+                        this.deselectAll();
+                    }
+                });
+                
+                document.getElementById('addChildMenuItem').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.contextMenuNodeId) {
+                        this.addChildNode(this.contextMenuNodeId);
+                    }
+                    this.hideContextMenu();
+                });
+                
+                document.getElementById('deleteMenuItem').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.contextMenuNodeId) {
+                        this.deleteNode(this.contextMenuNodeId);
+                    }
+                    this.hideContextMenu();
+                });
+                
+                document.addEventListener('click', () => {
+                    this.hideContextMenu();
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        this.hideContextMenu();
+                        this.hideSaveDialog();
+                    }
+                });
+                
+                document.getElementById('newMindmapBtn').addEventListener('click', (e) => {
+                    console.log('New mindmap button clicked');
+                    e.stopPropagation();
+                    this.newMindmap();
+                });
+                
+                document.getElementById('saveMindmapBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showSaveDialog();
+                });
+                
+                document.getElementById('loadMindmapBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleSidebar();
+                });
+                
+                document.getElementById('deleteMindmapBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteCurrentMindmap();
+                });
+                
+                document.getElementById('reconnectBtn').addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await this.checkBackendConnection();
+                    if (this.backendConnected) {
+                        await this.loadMindmapsList();
+                    }
+                });
+                
+                document.getElementById('sidebarClose').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideSidebar();
+                });
+                
+                document.getElementById('overlay').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideSaveDialog();
+                });
+                
+                document.getElementById('cancelSaveBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideSaveDialog();
+                });
+                
+                document.getElementById('confirmSaveBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.saveMindmap();
+                });
+                
+                document.getElementById('mindmapNameInput').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        this.saveMindmap();
+                    }
+                });
+                
+                console.log('Event listeners bound successfully');
+            }
+            
+            async checkBackendConnection() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/health`, {
+                        method: 'GET',
+                        signal: AbortSignal.timeout(3000)
+                    });
+                    
+                    if (response.ok) {
+                        this.backendConnected = true;
+                        this.updateConnectionStatus(true);
+                        console.log('Backend connected successfully');
+                    } else {
+                        this.backendConnected = false;
+                        this.updateConnectionStatus(false);
+                    }
+                } catch (error) {
+                    console.log('Backend not connected:', error.message);
+                    this.backendConnected = false;
+                    this.updateConnectionStatus(false);
+                }
+            }
+            
+            updateConnectionStatus(connected) {
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                const connectionStatus = document.getElementById('connectionStatus');
+                
+                if (connected) {
+                    statusDot.className = 'status-dot connected';
+                    statusText.textContent = '后端已连接';
+                    connectionStatus.className = 'connection-status connected';
+                } else {
+                    statusDot.className = 'status-dot disconnected';
+                    statusText.textContent = '后端未连接';
+                    connectionStatus.className = 'connection-status disconnected';
+                }
+            }
+            
+            showNotification(message, type = 'info') {
+                try {
+                    const notification = document.getElementById('notification');
+                    if (!notification) {
+                        console.log('Notification:', message);
+                        return;
+                    }
+                    
+                    notification.textContent = message;
+                    notification.className = `notification show ${type}`;
+                    
+                    setTimeout(() => {
+                        notification.classList.remove('show');
+                    }, 3000);
+                } catch (error) {
+                    console.log('Notification error:', error);
+                }
+            }
+            
+            updateCurrentMindmapInfo() {
+                try {
+                    const nameElement = document.getElementById('currentMindmapName');
+                    if (nameElement) {
+                        nameElement.textContent = this.currentMindmapName;
+                    }
+                    
+                    const deleteBtn = document.getElementById('deleteMindmapBtn');
+                    if (deleteBtn) {
+                        deleteBtn.style.display = this.currentMindmapId ? 'inline-block' : 'none';
+                    }
+                } catch (error) {
+                    console.error('Error updating current mindmap info:', error);
+                }
+            }
+            
+            async loadMindmapsList() {
+                if (!this.backendConnected) {
+                    console.log('Backend not connected, cannot load mindmaps list');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps`);
+                    if (response.ok) {
+                        this.mindmaps = await response.json();
+                        this.renderMindmapList();
+                    }
+                } catch (error) {
+                    console.error('Failed to load mindmaps list:', error);
+                    this.backendConnected = false;
+                    this.updateConnectionStatus(false);
+                }
+            }
+            
+            renderMindmapList() {
+                try {
+                    const listContainer = document.getElementById('mindmapList');
+                    if (!listContainer) return;
+                    
+                    listContainer.innerHTML = '';
+                    
+                    if (!this.backendConnected) {
+                        listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">后端未连接，无法加载保存的思维导图</div>';
+                        return;
+                    }
+                    
+                    if (this.mindmaps.length === 0) {
+                        listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无保存的思维导图</div>';
+                        return;
+                    }
+                    
+                    this.mindmaps.forEach(mindmap => {
+                        const item = document.createElement('div');
+                        item.className = `mindmap-item ${mindmap.id === this.currentMindmapId ? 'active' : ''}`;
+                        item.innerHTML = `
+                            <div class="mindmap-item-name">${this.escapeHtml(mindmap.name)}</div>
+                            <div class="mindmap-item-time">更新于 ${mindmap.updated_at}</div>
+                            <div class="mindmap-item-actions">
+                                <button class="load-btn" data-id="${mindmap.id}">加载</button>
+                                <button class="delete-btn" data-id="${mindmap.id}">删除</button>
+                            </div>
+                        `;
+                        
+                        item.querySelector('.load-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.loadMindmap(mindmap.id);
+                        });
+                        
+                        item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.deleteMindmapFromList(mindmap.id);
+                        });
+                        
+                        listContainer.appendChild(item);
+                    });
+                } catch (error) {
+                    console.error('Error rendering mindmap list:', error);
+                }
+            }
+            
+            escapeHtml(text) {
+                try {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                } catch (error) {
+                    return text;
+                }
+            }
+            
+            toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (sidebar && sidebar.classList.contains('show')) {
+                    this.hideSidebar();
+                } else {
+                    this.showSidebar();
+                }
+            }
+            
+            showSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (sidebar) sidebar.classList.add('show');
+                if (mainContent) mainContent.classList.add('with-sidebar');
+                this.renderMindmapList();
+            }
+            
+            hideSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (sidebar) sidebar.classList.remove('show');
+                if (mainContent) mainContent.classList.remove('with-sidebar');
+            }
+            
+            showSaveDialog() {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法保存', 'error');
+                    return;
+                }
+                
+                const dialog = document.getElementById('saveDialog');
+                const overlay = document.getElementById('overlay');
+                const input = document.getElementById('mindmapNameInput');
+                
+                if (input) input.value = this.currentMindmapName;
+                if (dialog) dialog.classList.add('show');
+                if (overlay) overlay.classList.add('show');
+                
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
+            }
+            
+            hideSaveDialog() {
+                const dialog = document.getElementById('saveDialog');
+                const overlay = document.getElementById('overlay');
+                
+                if (dialog) dialog.classList.remove('show');
+                if (overlay) overlay.classList.remove('show');
+            }
+            
+            newMindmap() {
+                console.log('newMindmap called');
+                
+                try {
+                    this.nodes = [];
+                    this.nextNodeId = 1;
+                    this.currentMindmapId = null;
+                    this.currentMindmapName = '新思维导图';
+                    
+                    console.log('Nodes after reset:', this.nodes);
+                    console.log('nextNodeId after reset:', this.nextNodeId);
+                    
+                    this.updateCurrentMindmapInfo();
+                    this.render();
+                    this.showNotification('已创建新思维导图', 'info');
+                    
+                    console.log('newMindmap completed');
+                } catch (error) {
+                    console.error('Error in newMindmap:', error);
+                    this.showNotification('创建新思维导图失败', 'error');
+                }
+            }
+            
+            async saveMindmap() {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法保存', 'error');
+                    return;
+                }
+                
+                const nameInput = document.getElementById('mindmapNameInput');
+                const name = nameInput ? (nameInput.value.trim() || '未命名思维导图') : '未命名思维导图';
+                
+                const mindmapData = {
+                    nodes: JSON.parse(JSON.stringify(this.nodes)),
+                    nextNodeId: this.nextNodeId,
+                    layoutType: this.layoutType,
+                    connectionStyle: this.connectionStyle,
+                    fontFamily: this.fontFamily
+                };
+                
+                try {
+                    let response;
+                    
+                    if (this.currentMindmapId) {
+                        response = await fetch(`${API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: name,
+                                data: mindmapData
+                            })
+                        });
+                    } else {
+                        response = await fetch(`${API_BASE_URL}/mindmaps`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: name,
+                                data: mindmapData
+                            })
+                        });
+                    }
+                    
+                    if (response.ok) {
+                        const savedMindmap = await response.json();
+                        this.currentMindmapId = savedMindmap.id;
+                        this.currentMindmapName = savedMindmap.name;
+                        this.updateCurrentMindmapInfo();
+                        this.hideSaveDialog();
+                        this.showNotification('保存成功', 'success');
+                        await this.loadMindmapsList();
+                    } else {
+                        this.showNotification('保存失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to save mindmap:', error);
+                    this.showNotification('保存失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            async loadMindmap(id) {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法加载', 'error');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps/${id}`);
+                    if (response.ok) {
+                        const mindmap = await response.json();
+                        
+                        this.currentMindmapId = mindmap.id;
+                        this.currentMindmapName = mindmap.name;
+                        
+                        if (mindmap.data) {
+                            this.nodes = mindmap.data.nodes || [];
+                            this.nextNodeId = mindmap.data.nextNodeId || 1;
+                            this.layoutType = mindmap.data.layoutType || 'right';
+                            this.connectionStyle = mindmap.data.connectionStyle || 'curve';
+                            this.fontFamily = mindmap.data.fontFamily || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+                            
+                            const layoutSelect = document.getElementById('layoutSelect');
+                            const connectionSelect = document.getElementById('connectionStyleSelect');
+                            const fontSelect = document.getElementById('fontSelect');
+                            
+                            if (layoutSelect) layoutSelect.value = this.layoutType;
+                            if (connectionSelect) connectionSelect.value = this.connectionStyle;
+                            if (fontSelect) fontSelect.value = this.fontFamily;
+                        }
+                        
+                        this.updateCurrentMindmapInfo();
+                        this.render();
+                        this.hideSidebar();
+                        this.showNotification(`已加载：${mindmap.name}`, 'success');
+                    } else {
+                        this.showNotification('加载失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to load mindmap:', error);
+                    this.showNotification('加载失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            async deleteMindmapFromList(id) {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法删除', 'error');
+                    return;
+                }
+                
+                if (!confirm('确定要删除这个思维导图吗？')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        if (this.currentMindmapId === id) {
+                            this.newMindmap();
+                        }
+                        await this.loadMindmapsList();
+                        this.showNotification('删除成功', 'success');
+                    } else {
+                        this.showNotification('删除失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete mindmap:', error);
+                    this.showNotification('删除失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            async deleteCurrentMindmap() {
+                if (!this.currentMindmapId) {
+                    return;
+                }
+                
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法删除', 'error');
+                    return;
+                }
+                
+                if (!confirm('确定要删除当前思维导图吗？')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        this.newMindmap();
+                        this.showNotification('删除成功', 'success');
+                    } else {
+                        this.showNotification('删除失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete mindmap:', error);
+                    this.showNotification('删除失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            addCenterNode() {
+                console.log('addCenterNode called');
+                console.log('nextNodeId before:', this.nextNodeId);
+                
+                try {
+                    const id = this.nextNodeId++;
+                    const node = {
+                        id,
+                        text: '中心节点',
+                        x: 100,
+                        y: 100,
+                        children: [],
+                        isCenter: true,
+                        checked: false,
+                        parentId: null
+                    };
+                    
+                    console.log('Created node:', node);
+                    console.log('this.nodes before push:', this.nodes);
+                    
+                    this.nodes.push(node);
+                    
+                    console.log('this.nodes after push:', this.nodes);
+                    console.log('nextNodeId after:', this.nextNodeId);
+                    
+                    this.render();
+                    this.showNotification('已添加中心节点', 'info');
+                } catch (error) {
+                    console.error('Error in addCenterNode:', error);
+                    this.showNotification('添加中心节点失败', 'error');
+                }
+            }
+            
+            addChildNode(parentId) {
+                const parentNode = this.nodes.find(n => n.id === parentId);
+                if (!parentNode) {
+                    console.error('Parent node not found:', parentId);
+                    return;
+                }
+                
+                try {
+                    const id = this.nextNodeId++;
+                    const node = {
+                        id,
+                        text: '子节点',
+                        x: 0,
+                        y: 0,
+                        children: [],
+                        isCenter: false,
+                        checked: false,
+                        parentId
+                    };
+                    
+                    this.nodes.push(node);
+                    parentNode.children.push(id);
+                    this.render();
+                } catch (error) {
+                    console.error('Error in addChildNode:', error);
+                }
+            }
+            
+            deleteNode(nodeId) {
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (!node) return;
+                
+                try {
+                    const deleteRecursive = (id) => {
+                        const currentNode = this.nodes.find(n => n.id === id);
+                        if (currentNode) {
+                            currentNode.children.forEach(childId => deleteRecursive(childId));
+                            if (currentNode.parentId) {
+                                const parent = this.nodes.find(n => n.id === currentNode.parentId);
+                                if (parent) {
+                                    parent.children = parent.children.filter(cId => cId !== id);
+                                }
+                            }
+                            this.nodes = this.nodes.filter(n => n.id !== id);
+                        }
+                    };
+                    
+                    deleteRecursive(nodeId);
+                    this.render();
+                } catch (error) {
+                    console.error('Error in deleteNode:', error);
+                }
+            }
+            
+            updateNodeText(nodeId, text) {
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (node) {
+                    node.text = text;
+                    this.editingNodeId = null;
+                    this.render();
+                }
+            }
+            
+            toggleNodeChecked(nodeId) {
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (node) {
+                    node.checked = !node.checked;
+                    this.render();
+                }
+            }
+            
+            selectNode(nodeId) {
+                this.selectedNodeId = nodeId;
+                this.render();
+            }
+            
+            deselectAll() {
+                this.selectedNodeId = null;
+                this.editingNodeId = null;
+                this.render();
+            }
+            
+            startEditing(nodeId) {
+                this.editingNodeId = nodeId;
+                this.selectedNodeId = nodeId;
+                this.render();
+                
+                setTimeout(() => {
+                    try {
+                        const contentElement = document.querySelector(`[data-node-id="${nodeId}"] .node-content`);
+                        if (contentElement) {
+                            contentElement.focus();
+                            const range = document.createRange();
+                            range.selectNodeContents(contentElement);
+                            const selection = window.getSelection();
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    } catch (error) {
+                        console.error('Error in startEditing:', error);
+                    }
+                }, 10);
+            }
+            
+            showContextMenu(nodeId, x, y) {
+                this.contextMenuNodeId = nodeId;
+                const contextMenu = document.getElementById('contextMenu');
+                if (!contextMenu) return;
+                
+                const menuWidth = 120;
+                const menuHeight = 82;
+                
+                let menuX = x;
+                let menuY = y;
+                
+                if (menuX + menuWidth > window.innerWidth) {
+                    menuX = window.innerWidth - menuWidth - 10;
+                }
+                if (menuY + menuHeight > window.innerHeight) {
+                    menuY = window.innerHeight - menuHeight - 10;
+                }
+                
+                contextMenu.style.left = `${menuX}px`;
+                contextMenu.style.top = `${menuY}px`;
+                contextMenu.style.display = 'block';
+            }
+            
+            hideContextMenu() {
+                const contextMenu = document.getElementById('contextMenu');
+                if (contextMenu) {
+                    contextMenu.style.display = 'none';
+                }
+                this.contextMenuNodeId = null;
+            }
+            
+            calculateLayout() {
+                if (this.nodes.length === 0) return;
+                
+                try {
+                    this.nodes.forEach(node => {
+                        node.x = 0;
+                        node.y = 0;
+                    });
+                    
+                    if (this.layoutType === 'right') {
+                        this.calculateRightLayout();
+                    } else {
+                        this.calculateTreeLayout();
+                    }
+                } catch (error) {
+                    console.error('Error in calculateLayout:', error);
+                }
+            }
+            
+            calculateRightLayout() {
+                const centerNodes = this.nodes.filter(n => n.isCenter);
+                const nodeHeight = 35;
+                const levelWidth = 250;
+                const verticalGap = 20;
+                
+                const getSubtreeHeight = (nodeId) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node || node.children.length === 0) return nodeHeight;
+                    
+                    let totalHeight = 0;
+                    node.children.forEach(childId => {
+                        totalHeight += getSubtreeHeight(childId) + verticalGap;
+                    });
+                    totalHeight -= verticalGap;
+                    
+                    return Math.max(nodeHeight, totalHeight);
+                };
+                
+                let currentY = 50;
+                
+                const layoutRightSubtree = (nodeId, level, startY, allocatedHeight) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node) return startY;
+                    
+                    node.x = 100 + level * levelWidth;
+                    
+                    if (node.children.length === 0) {
+                        node.y = startY;
+                        return startY + nodeHeight;
+                    } else {
+                        let childrenTotalHeight = 0;
+                        node.children.forEach(childId => {
+                            childrenTotalHeight += getSubtreeHeight(childId) + verticalGap;
+                        });
+                        childrenTotalHeight -= verticalGap;
+                        
+                        const availableHeight = Math.max(nodeHeight, childrenTotalHeight);
+                        node.y = startY + (availableHeight - nodeHeight) / 2;
+                        
+                        let childY = startY;
+                        node.children.forEach(childId => {
+                            const childSubtreeHeight = getSubtreeHeight(childId);
+                            layoutRightSubtree(childId, level + 1, childY, childSubtreeHeight);
+                            childY += childSubtreeHeight + verticalGap;
+                        });
+                        
+                        return startY + availableHeight;
+                    }
+                };
+                
+                centerNodes.forEach(centerNode => {
+                    const subtreeHeight = getSubtreeHeight(centerNode.id);
+                    layoutRightSubtree(centerNode.id, 0, currentY, subtreeHeight);
+                    currentY += subtreeHeight + 40;
+                });
+            }
+            
+            calculateTreeLayout() {
+                const centerNodes = this.nodes.filter(n => n.isCenter);
+                const nodeHeight = 35;
+                const levelHeight = 100;
+                const horizontalGap = 30;
+                
+                const getSubtreeWidth = (nodeId) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node || node.children.length === 0) {
+                        return 150;
+                    }
+                    
+                    let totalWidth = 0;
+                    node.children.forEach(childId => {
+                        totalWidth += getSubtreeWidth(childId) + horizontalGap;
+                    });
+                    totalWidth -= horizontalGap;
+                    
+                    return Math.max(150, totalWidth);
+                };
+                
+                const layoutTreeSubtree = (nodeId, level, startX, allocatedWidth) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node) return startX;
+                    
+                    node.y = 50 + level * levelHeight;
+                    
+                    if (node.children.length === 0) {
+                        node.x = startX + (allocatedWidth - 150) / 2;
+                        return startX + allocatedWidth;
+                    } else {
+                        let childrenTotalWidth = 0;
+                        node.children.forEach(childId => {
+                            childrenTotalWidth += getSubtreeWidth(childId) + horizontalGap;
+                        });
+                        childrenTotalWidth -= horizontalGap;
+                        
+                        const availableWidth = Math.max(150, childrenTotalWidth);
+                        node.x = startX + (availableWidth - 150) / 2;
+                        
+                        let childX = startX;
+                        node.children.forEach(childId => {
+                            const childSubtreeWidth = getSubtreeWidth(childId);
+                            layoutTreeSubtree(childId, level + 1, childX, childSubtreeWidth);
+                            childX += childSubtreeWidth + horizontalGap;
+                        });
+                        
+                        return startX + availableWidth;
+                    }
+                };
+                
+                let currentX = 50;
+                centerNodes.forEach(centerNode => {
+                    const subtreeWidth = getSubtreeWidth(centerNode.id);
+                    layoutTreeSubtree(centerNode.id, 0, currentX, subtreeWidth);
+                    currentX += subtreeWidth + 150;
+                });
+            }
+            
+            render() {
+                console.log('render called');
+                console.log('this.nodes:', this.nodes);
+                
+                try {
+                    const mindMap = document.getElementById('mindMap');
+                    const connections = document.getElementById('connections');
+                    
+                    if (!mindMap || !connections) {
+                        console.error('Required elements not found');
+                        return;
+                    }
+                    
+                    this.calculateLayout();
+                    
+                    const existingNodes = mindMap.querySelectorAll('.node');
+                    console.log('Removing', existingNodes.length, 'existing nodes');
+                    existingNodes.forEach(node => node.remove());
+                    
+                    connections.innerHTML = '';
+                    
+                    let maxX = 0;
+                    let maxY = 0;
+                    this.nodes.forEach(node => {
+                        maxX = Math.max(maxX, node.x + 400);
+                        maxY = Math.max(maxY, node.y + 200);
+                    });
+                    
+                    const containerWidth = Math.max(maxX, window.innerWidth - 40);
+                    const containerHeight = Math.max(maxY, window.innerHeight - 80);
+                    
+                    mindMap.style.width = `${containerWidth}px`;
+                    mindMap.style.height = `${containerHeight}px`;
+                    connections.setAttribute('width', containerWidth);
+                    connections.setAttribute('height', containerHeight);
+                    connections.style.width = `${containerWidth}px`;
+                    connections.style.height = `${containerHeight}px`;
+                    
+                    console.log('Creating', this.nodes.length, 'nodes');
+                    this.nodes.forEach(node => {
+                        console.log('Creating node element for:', node);
+                        const nodeElement = this.createNodeElement(node);
+                        if (nodeElement) {
+                            mindMap.appendChild(nodeElement);
+                            console.log('Node element appended:', nodeElement);
+                        }
+                    });
+                    
+                    this.nodes.forEach(node => {
+                        if (node.parentId) {
+                            this.renderConnection(node.parentId, node.id);
+                        }
+                    });
+                    
+                    if (this.nodes.length === 0) {
+                        const emptyMessage = document.createElement('div');
+                        emptyMessage.className = 'empty-message';
+                        emptyMessage.textContent = '点击"添加中心节点"开始创建思维导图';
+                        mindMap.appendChild(emptyMessage);
+                        console.log('Empty message appended');
+                    }
+                    
+                    console.log('render completed');
+                } catch (error) {
+                    console.error('Error in render:', error);
+                }
+            }
+            
+            createNodeElement(node) {
+                try {
+                    console.log('createNodeElement called for:', node);
+                    
+                    const div = document.createElement('div');
+                    div.className = `node ${this.selectedNodeId === node.id ? 'selected' : ''}`;
+                    div.style.left = `${node.x}px`;
+                    div.style.top = `${node.y}px`;
+                    div.dataset.nodeId = node.id;
+                    
+                    console.log('Created div:', div.outerHTML);
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = `node-checkbox ${node.checked ? 'checked' : ''}`;
+                    checkbox.checked = node.checked;
+                    checkbox.addEventListener('change', (e) => {
+                        e.stopPropagation();
+                        this.toggleNodeChecked(node.id);
+                    });
+                    
+                    const content = document.createElement('div');
+                    content.className = 'node-content';
+                    content.textContent = node.text;
+                    content.contentEditable = 'true';
+                    content.style.fontFamily = this.fontFamily;
+                    content.style.fontSize = '16px';
+                    
+                    content.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        this.startEditing(node.id);
+                    });
+                    
+                    content.addEventListener('click', (e) => {
+                        if (this.editingNodeId !== node.id) {
+                            e.stopPropagation();
+                        }
+                    });
+                    
+                    content.addEventListener('blur', (e) => {
+                        if (e.target.textContent.trim() !== node.text) {
+                            this.updateNodeText(node.id, e.target.textContent.trim());
+                        } else {
+                            this.editingNodeId = null;
+                        }
+                    });
+                    
+                    content.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (e.target.textContent.trim() !== node.text) {
+                                this.updateNodeText(node.id, e.target.textContent.trim());
+                            } else {
+                                this.editingNodeId = null;
+                                e.target.blur();
+                            }
+                        }
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            this.editingNodeId = null;
+                            e.target.blur();
+                        }
+                    });
+                    
+                    div.appendChild(checkbox);
+                    div.appendChild(content);
+                    
+                    div.addEventListener('click', (e) => {
+                        if (e.target !== checkbox && e.target !== content) {
+                            e.stopPropagation();
+                            this.selectNode(node.id);
+                        }
+                    });
+                    
+                    div.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        this.showContextMenu(node.id, e.clientX, e.clientY);
+                    });
+                    
+                    console.log('Node element created successfully:', div.outerHTML);
+                    return div;
+                } catch (error) {
+                    console.error('Error in createNodeElement:', error);
+                    return null;
+                }
+            }
+            
+            renderConnection(parentId, childId) {
+                try {
+                    const parent = this.nodes.find(n => n.id === parentId);
+                    const child = this.nodes.find(n => n.id === childId);
+                    
+                    if (!parent || !child) return;
+                    
+                    const connections = document.getElementById('connections');
+                    if (!connections) return;
+                    
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    
+                    let startX, startY, endX, endY;
+                    
+                    if (this.layoutType === 'right') {
+                        startX = parent.x + 150;
+                        startY = parent.y + 17;
+                        endX = child.x + 8;
+                        endY = child.y + 17;
+                    } else {
+                        startX = parent.x + 75;
+                        startY = parent.y + 35;
+                        endX = child.x + 75;
+                        endY = child.y + 8;
+                    }
+                    
+                    let pathData = '';
+                    
+                    if (this.connectionStyle === 'curve') {
+                        if (this.layoutType === 'right') {
+                            const controlX1 = startX + (endX - startX) / 2;
+                            const controlY1 = startY;
+                            const controlX2 = startX + (endX - startX) / 2;
+                            const controlY2 = endY;
+                            pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                        } else {
+                            const controlX1 = startX;
+                            const controlY1 = startY + (endY - startY) / 2;
+                            const controlX2 = endX;
+                            const controlY2 = endY - (endY - startY) / 2;
+                            pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                        }
+                    } else if (this.connectionStyle === 'right-angle') {
+                        if (this.layoutType === 'right') {
+                            const midX = (startX + endX) / 2;
+                            pathData = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+                        } else {
+                            const midY = (startY + endY) / 2;
+                            pathData = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+                        }
+                    } else {
+                        pathData = `M ${startX} ${startY} L ${endX} ${endY}`;
+                    }
+                    
+                    path.setAttribute('d', pathData);
+                    path.setAttribute('class', 'connection-line');
+                    connections.appendChild(path);
+                } catch (error) {
+                    console.error('Error in renderConnection:', error);
+                }
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('DOMContentLoaded fired');
+            try {
+                const mindMap = new MindMap();
+                console.log('MindMap instance created');
+            } catch (error) {
+                console.error('Error creating MindMap:', error);
+            }
+        });
+    </script>
+</body>
+</html>
