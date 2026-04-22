@@ -124,40 +124,6 @@
             outline: 1px solid #1890ff;
         }
         
-        .node-actions {
-            display: none;
-            gap: 4px;
-            margin-left: 8px;
-        }
-        
-        .node.selected .node-actions {
-            display: flex;
-        }
-        
-        .node-actions button {
-            padding: 2px 6px;
-            font-size: 12px;
-            border: 1px solid #cccccc;
-            border-radius: 3px;
-            background-color: #ffffff;
-            cursor: pointer;
-            transition: all 0.2s;
-            white-space: nowrap;
-        }
-        
-        .node-actions button:hover {
-            background-color: #e8e8e8;
-        }
-        
-        .node-actions button.delete-btn {
-            color: #ff4d4f;
-            border-color: #ff4d4f;
-        }
-        
-        .node-actions button.delete-btn:hover {
-            background-color: #fff2f0;
-        }
-        
         .connections {
             position: absolute;
             top: 0;
@@ -196,6 +162,41 @@
             font-size: 18px;
             color: #999999;
             text-align: center;
+        }
+        
+        .context-menu {
+            position: fixed;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 2000;
+            min-width: 120px;
+            display: none;
+        }
+        
+        .context-menu-item {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 14px;
+            transition: background-color 0.2s;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        
+        .context-menu-item:last-child {
+            border-bottom: none;
+        }
+        
+        .context-menu-item:hover {
+            background-color: #f5f5f5;
+        }
+        
+        .context-menu-item.delete-item {
+            color: #ff4d4f;
+        }
+        
+        .context-menu-item.delete-item:hover {
+            background-color: #fff2f0;
         }
     </style>
 </head>
@@ -239,6 +240,11 @@
             <svg class="connections" id="connections"></svg>
         </div>
     </div>
+    
+    <div class="context-menu" id="contextMenu">
+        <div class="context-menu-item" id="addChildMenuItem">添加子节点</div>
+        <div class="context-menu-item delete-item" id="deleteMenuItem">删除</div>
+    </div>
 
     <script>
         class MindMap {
@@ -250,6 +256,7 @@
                 this.nextNodeId = 1;
                 this.selectedNodeId = null;
                 this.editingNodeId = null;
+                this.contextMenuNodeId = null;
                 
                 this.init();
             }
@@ -272,6 +279,32 @@
                 document.getElementById('mindMap').addEventListener('click', (e) => {
                     if (e.target.id === 'mindMap' || e.target.tagName === 'svg' || e.target.tagName === 'path') {
                         this.deselectAll();
+                    }
+                });
+                
+                document.getElementById('addChildMenuItem').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.contextMenuNodeId) {
+                        this.addChildNode(this.contextMenuNodeId);
+                    }
+                    this.hideContextMenu();
+                });
+                
+                document.getElementById('deleteMenuItem').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    if (this.contextMenuNodeId) {
+                        this.deleteNode(this.contextMenuNodeId);
+                    }
+                    this.hideContextMenu();
+                });
+                
+                document.addEventListener('click', () => {
+                    this.hideContextMenu();
+                });
+                
+                document.addEventListener('keydown', (e) => {
+                    if (e.key === 'Escape') {
+                        this.hideContextMenu();
                     }
                 });
                 
@@ -381,6 +414,34 @@
                         selection.addRange(range);
                     }
                 }, 10);
+            }
+            
+            showContextMenu(nodeId, x, y) {
+                this.contextMenuNodeId = nodeId;
+                const contextMenu = document.getElementById('contextMenu');
+                
+                const menuWidth = 120;
+                const menuHeight = 82;
+                
+                let menuX = x;
+                let menuY = y;
+                
+                if (menuX + menuWidth > window.innerWidth) {
+                    menuX = window.innerWidth - menuWidth - 10;
+                }
+                if (menuY + menuHeight > window.innerHeight) {
+                    menuY = window.innerHeight - menuHeight - 10;
+                }
+                
+                contextMenu.style.left = `${menuX}px`;
+                contextMenu.style.top = `${menuY}px`;
+                contextMenu.style.display = 'block';
+            }
+            
+            hideContextMenu() {
+                const contextMenu = document.getElementById('contextMenu');
+                contextMenu.style.display = 'none';
+                this.contextMenuNodeId = null;
             }
             
             calculateLayout() {
@@ -621,36 +682,20 @@
                     }
                 });
                 
-                const actions = document.createElement('div');
-                actions.className = 'node-actions';
-                
-                const addBtn = document.createElement('button');
-                addBtn.textContent = '添加';
-                addBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.addChildNode(node.id);
-                });
-                
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'delete-btn';
-                deleteBtn.textContent = '删除';
-                deleteBtn.addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.deleteNode(node.id);
-                });
-                
-                actions.appendChild(addBtn);
-                actions.appendChild(deleteBtn);
-                
                 div.appendChild(checkbox);
                 div.appendChild(content);
-                div.appendChild(actions);
                 
                 div.addEventListener('click', (e) => {
-                    if (e.target !== addBtn && e.target !== deleteBtn && e.target !== checkbox && e.target !== content) {
+                    if (e.target !== checkbox && e.target !== content) {
                         e.stopPropagation();
                         this.selectNode(node.id);
                     }
+                });
+                
+                div.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this.showContextMenu(node.id, e.clientX, e.clientY);
                 });
                 
                 return div;
