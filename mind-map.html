@@ -701,8 +701,13 @@
                     this.hideContextMenu();
                 });
                 
-                document.addEventListener('click', () => {
-                    this.hideContextMenu();
+                document.addEventListener('mousedown', (e) => {
+                    const contextMenu = document.getElementById('contextMenu');
+                    if (contextMenu && contextMenu.style.display === 'block') {
+                        if (!contextMenu.contains(e.target)) {
+                            this.hideContextMenu();
+                        }
+                    }
                 });
                 
                 document.addEventListener('keydown', (e) => {
