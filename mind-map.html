@@ -498,6 +498,37 @@
             background-color: #e0e0e0;
             margin: 0 5px;
         }
+        
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            font-size: 12px;
+            color: #999;
+        }
+        
+        .connection-status.connected {
+            color: #52c41a;
+        }
+        
+        .connection-status.disconnected {
+            color: #ff4d4f;
+        }
+        
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            display: inline-block;
+        }
+        
+        .status-dot.connected {
+            background-color: #52c41a;
+        }
+        
+        .status-dot.disconnected {
+            background-color: #ff4d4f;
+        }
     </style>
 </head>
 <body>
@@ -506,9 +537,12 @@
             <span>当前：</span>
             <span class="name" id="currentMindmapName">新思维导图</span>
         </div>
+        <div class="connection-status" id="connectionStatus">
+            <span class="status-dot disconnected" id="statusDot"></span>
+            <span id="statusText">后端未连接</span>
+        </div>
         <div class="toolbar-separator"></div>
         <button id="newMindmapBtn">新建</button>
-        <button id="addCenterNode">添加中心节点</button>
         <button id="saveMindmapBtn" class="primary">保存</button>
         <button id="loadMindmapBtn">加载</button>
         <button id="deleteMindmapBtn" class="danger" style="display: none;">删除</button>
@@ -599,20 +633,45 @@
                 this.currentMindmapId = null;
                 this.currentMindmapName = '新思维导图';
                 this.mindmaps = [];
+                this.backendConnected = false;
                 
                 this.init();
             }
             
             async init() {
-                document.getElementById('addCenterNode').addEventListener('click', () => this.addCenterNode());
+                try {
+                    this.bindEventListeners();
+                    await this.checkBackendConnection();
+                    if (this.backendConnected) {
+                        await this.loadMindmapsList();
+                    }
+                    this.render();
+                    console.log('MindMap initialized successfully');
+                } catch (error) {
+                    console.error('Error during initialization:', error);
+                    this.render();
+                }
+            }
+            
+            bindEventListeners() {
+                console.log('Binding event listeners...');
+                
+                document.getElementById('addCenterNode').addEventListener('click', (e) => {
+                    console.log('Add center node clicked');
+                    e.stopPropagation();
+                    this.addCenterNode();
+                });
+                
                 document.getElementById('layoutSelect').addEventListener('change', (e) => {
                     this.layoutType = e.target.value;
                     this.render();
                 });
+                
                 document.getElementById('connectionStyleSelect').addEventListener('change', (e) => {
                     this.connectionStyle = e.target.value;
                     this.render();
                 });
+                
                 document.getElementById('fontSelect').addEventListener('change', (e) => {
                     this.fontFamily = e.target.value;
                     this.render();
@@ -651,43 +710,136 @@
                     }
                 });
                 
-                document.getElementById('newMindmapBtn').addEventListener('click', () => this.newMindmap());
-                document.getElementById('saveMindmapBtn').addEventListener('click', () => this.showSaveDialog());
-                document.getElementById('loadMindmapBtn').addEventListener('click', () => this.toggleSidebar());
-                document.getElementById('deleteMindmapBtn').addEventListener('click', () => this.deleteCurrentMindmap());
+                document.getElementById('newMindmapBtn').addEventListener('click', (e) => {
+                    console.log('New mindmap button clicked');
+                    e.stopPropagation();
+                    this.newMindmap();
+                });
                 
-                document.getElementById('sidebarClose').addEventListener('click', () => this.hideSidebar());
-                document.getElementById('overlay').addEventListener('click', () => this.hideSaveDialog());
-                document.getElementById('cancelSaveBtn').addEventListener('click', () => this.hideSaveDialog());
-                document.getElementById('confirmSaveBtn').addEventListener('click', () => this.saveMindmap());
+                document.getElementById('saveMindmapBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showSaveDialog();
+                });
+                
+                document.getElementById('loadMindmapBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.toggleSidebar();
+                });
+                
+                document.getElementById('deleteMindmapBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteCurrentMindmap();
+                });
+                
+                document.getElementById('sidebarClose').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideSidebar();
+                });
+                
+                document.getElementById('overlay').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideSaveDialog();
+                });
+                
+                document.getElementById('cancelSaveBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideSaveDialog();
+                });
+                
+                document.getElementById('confirmSaveBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.saveMindmap();
+                });
                 
                 document.getElementById('mindmapNameInput').addEventListener('keydown', (e) => {
                     if (e.key === 'Enter') {
+                        e.stopPropagation();
                         this.saveMindmap();
                     }
                 });
                 
-                await this.loadMindmapsList();
-                this.render();
+                console.log('Event listeners bound successfully');
+            }
+            
+            async checkBackendConnection() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/health`, {
+                        method: 'GET',
+                        signal: AbortSignal.timeout(3000)
+                    });
+                    
+                    if (response.ok) {
+                        this.backendConnected = true;
+                        this.updateConnectionStatus(true);
+                        console.log('Backend connected successfully');
+                    } else {
+                        this.backendConnected = false;
+                        this.updateConnectionStatus(false);
+                    }
+                } catch (error) {
+                    console.log('Backend not connected:', error.message);
+                    this.backendConnected = false;
+                    this.updateConnectionStatus(false);
+                }
+            }
+            
+            updateConnectionStatus(connected) {
+                const statusDot = document.getElementById('statusDot');
+                const statusText = document.getElementById('statusText');
+                const connectionStatus = document.getElementById('connectionStatus');
+                
+                if (connected) {
+                    statusDot.className = 'status-dot connected';
+                    statusText.textContent = '后端已连接';
+                    connectionStatus.className = 'connection-status connected';
+                } else {
+                    statusDot.className = 'status-dot disconnected';
+                    statusText.textContent = '后端未连接';
+                    connectionStatus.className = 'connection-status disconnected';
+                }
             }
             
             showNotification(message, type = 'info') {
-                const notification = document.getElementById('notification');
-                notification.textContent = message;
-                notification.className = `notification show ${type}`;
-                
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                }, 3000);
+                try {
+                    const notification = document.getElementById('notification');
+                    if (!notification) {
+                        console.log('Notification:', message);
+                        return;
+                    }
+                    
+                    notification.textContent = message;
+                    notification.className = `notification show ${type}`;
+                    
+                    setTimeout(() => {
+                        notification.classList.remove('show');
+                    }, 3000);
+                } catch (error) {
+                    console.log('Notification error:', error);
+                }
             }
             
             updateCurrentMindmapInfo() {
-                const nameElement = document.getElementById('currentMindmapName');
-                nameElement.textContent = this.currentMindmapName;
-                document.getElementById('deleteMindmapBtn').style.display = this.currentMindmapId ? 'inline-block' : 'none';
+                try {
+                    const nameElement = document.getElementById('currentMindmapName');
+                    if (nameElement) {
+                        nameElement.textContent = this.currentMindmapName;
+                    }
+                    
+                    const deleteBtn = document.getElementById('deleteMindmapBtn');
+                    if (deleteBtn) {
+                        deleteBtn.style.display = this.currentMindmapId ? 'inline-block' : 'none';
+                    }
+                } catch (error) {
+                    console.error('Error updating current mindmap info:', error);
+                }
             }
             
             async loadMindmapsList() {
+                if (!this.backendConnected) {
+                    console.log('Backend not connected, cannot load mindmaps list');
+                    return;
+                }
+                
                 try {
                     const response = await fetch(`${API_BASE_URL}/mindmaps`);
                     if (response.ok) {
@@ -696,55 +848,72 @@
                     }
                 } catch (error) {
                     console.error('Failed to load mindmaps list:', error);
+                    this.backendConnected = false;
+                    this.updateConnectionStatus(false);
                 }
             }
             
             renderMindmapList() {
-                const listContainer = document.getElementById('mindmapList');
-                listContainer.innerHTML = '';
-                
-                if (this.mindmaps.length === 0) {
-                    listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无保存的思维导图</div>';
-                    return;
+                try {
+                    const listContainer = document.getElementById('mindmapList');
+                    if (!listContainer) return;
+                    
+                    listContainer.innerHTML = '';
+                    
+                    if (!this.backendConnected) {
+                        listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">后端未连接，无法加载保存的思维导图</div>';
+                        return;
+                    }
+                    
+                    if (this.mindmaps.length === 0) {
+                        listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无保存的思维导图</div>';
+                        return;
+                    }
+                    
+                    this.mindmaps.forEach(mindmap => {
+                        const item = document.createElement('div');
+                        item.className = `mindmap-item ${mindmap.id === this.currentMindmapId ? 'active' : ''}`;
+                        item.innerHTML = `
+                            <div class="mindmap-item-name">${this.escapeHtml(mindmap.name)}</div>
+                            <div class="mindmap-item-time">更新于 ${mindmap.updated_at}</div>
+                            <div class="mindmap-item-actions">
+                                <button class="load-btn" data-id="${mindmap.id}">加载</button>
+                                <button class="delete-btn" data-id="${mindmap.id}">删除</button>
+                            </div>
+                        `;
+                        
+                        item.querySelector('.load-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.loadMindmap(mindmap.id);
+                        });
+                        
+                        item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.deleteMindmapFromList(mindmap.id);
+                        });
+                        
+                        listContainer.appendChild(item);
+                    });
+                } catch (error) {
+                    console.error('Error rendering mindmap list:', error);
                 }
-                
-                this.mindmaps.forEach(mindmap => {
-                    const item = document.createElement('div');
-                    item.className = `mindmap-item ${mindmap.id === this.currentMindmapId ? 'active' : ''}`;
-                    item.innerHTML = `
-                        <div class="mindmap-item-name">${this.escapeHtml(mindmap.name)}</div>
-                        <div class="mindmap-item-time">更新于 ${mindmap.updated_at}</div>
-                        <div class="mindmap-item-actions">
-                            <button class="load-btn" data-id="${mindmap.id}">加载</button>
-                            <button class="delete-btn" data-id="${mindmap.id}">删除</button>
-                        </div>
-                    `;
-                    
-                    item.querySelector('.load-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.loadMindmap(mindmap.id);
-                    });
-                    
-                    item.querySelector('.delete-btn').addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        this.deleteMindmapFromList(mindmap.id);
-                    });
-                    
-                    listContainer.appendChild(item);
-                });
             }
             
             escapeHtml(text) {
-                const div = document.createElement('div');
-                div.textContent = text;
-                return div.innerHTML;
+                try {
+                    const div = document.createElement('div');
+                    div.textContent = text;
+                    return div.innerHTML;
+                } catch (error) {
+                    return text;
+                }
             }
             
             toggleSidebar() {
                 const sidebar = document.getElementById('sidebar');
                 const mainContent = document.getElementById('mainContent');
                 
-                if (sidebar.classList.contains('show')) {
+                if (sidebar && sidebar.classList.contains('show')) {
                     this.hideSidebar();
                 } else {
                     this.showSidebar();
@@ -755,54 +924,81 @@
                 const sidebar = document.getElementById('sidebar');
                 const mainContent = document.getElementById('mainContent');
                 
-                sidebar.classList.add('show');
-                mainContent.classList.add('with-sidebar');
-                this.loadMindmapsList();
+                if (sidebar) sidebar.classList.add('show');
+                if (mainContent) mainContent.classList.add('with-sidebar');
+                this.renderMindmapList();
             }
             
             hideSidebar() {
                 const sidebar = document.getElementById('sidebar');
                 const mainContent = document.getElementById('mainContent');
                 
-                sidebar.classList.remove('show');
-                mainContent.classList.remove('with-sidebar');
+                if (sidebar) sidebar.classList.remove('show');
+                if (mainContent) mainContent.classList.remove('with-sidebar');
             }
             
             showSaveDialog() {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法保存', 'error');
+                    return;
+                }
+                
                 const dialog = document.getElementById('saveDialog');
                 const overlay = document.getElementById('overlay');
                 const input = document.getElementById('mindmapNameInput');
                 
-                input.value = this.currentMindmapName;
-                dialog.classList.add('show');
-                overlay.classList.add('show');
-                input.focus();
-                input.select();
+                if (input) input.value = this.currentMindmapName;
+                if (dialog) dialog.classList.add('show');
+                if (overlay) overlay.classList.add('show');
+                
+                if (input) {
+                    input.focus();
+                    input.select();
+                }
             }
             
             hideSaveDialog() {
                 const dialog = document.getElementById('saveDialog');
                 const overlay = document.getElementById('overlay');
                 
-                dialog.classList.remove('show');
-                overlay.classList.remove('show');
+                if (dialog) dialog.classList.remove('show');
+                if (overlay) overlay.classList.remove('show');
             }
             
             newMindmap() {
-                this.nodes = [];
-                this.nextNodeId = 1;
-                this.currentMindmapId = null;
-                this.currentMindmapName = '新思维导图';
-                this.updateCurrentMindmapInfo();
-                this.render();
-                this.showNotification('已创建新思维导图', 'info');
+                console.log('newMindmap called');
+                
+                try {
+                    this.nodes = [];
+                    this.nextNodeId = 1;
+                    this.currentMindmapId = null;
+                    this.currentMindmapName = '新思维导图';
+                    
+                    console.log('Nodes after reset:', this.nodes);
+                    console.log('nextNodeId after reset:', this.nextNodeId);
+                    
+                    this.updateCurrentMindmapInfo();
+                    this.render();
+                    this.showNotification('已创建新思维导图', 'info');
+                    
+                    console.log('newMindmap completed');
+                } catch (error) {
+                    console.error('Error in newMindmap:', error);
+                    this.showNotification('创建新思维导图失败', 'error');
+                }
             }
             
             async saveMindmap() {
-                const name = document.getElementById('mindmapNameInput').value.trim() || '未命名思维导图';
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法保存', 'error');
+                    return;
+                }
+                
+                const nameInput = document.getElementById('mindmapNameInput');
+                const name = nameInput ? (nameInput.value.trim() || '未命名思维导图') : '未命名思维导图';
                 
                 const mindmapData = {
-                    nodes: this.nodes,
+                    nodes: JSON.parse(JSON.stringify(this.nodes)),
                     nextNodeId: this.nextNodeId,
                     layoutType: this.layoutType,
                     connectionStyle: this.connectionStyle,
@@ -843,7 +1039,7 @@
                         this.updateCurrentMindmapInfo();
                         this.hideSaveDialog();
                         this.showNotification('保存成功', 'success');
-                        this.loadMindmapsList();
+                        await this.loadMindmapsList();
                     } else {
                         this.showNotification('保存失败', 'error');
                     }
@@ -854,6 +1050,11 @@
             }
             
             async loadMindmap(id) {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法加载', 'error');
+                    return;
+                }
+                
                 try {
                     const response = await fetch(`${API_BASE_URL}/mindmaps/${id}`);
                     if (response.ok) {
@@ -869,9 +1070,13 @@
                             this.connectionStyle = mindmap.data.connectionStyle || 'curve';
                             this.fontFamily = mindmap.data.fontFamily || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
                             
-                            document.getElementById('layoutSelect').value = this.layoutType;
-                            document.getElementById('connectionStyleSelect').value = this.connectionStyle;
-                            document.getElementById('fontSelect').value = this.fontFamily;
+                            const layoutSelect = document.getElementById('layoutSelect');
+                            const connectionSelect = document.getElementById('connectionStyleSelect');
+                            const fontSelect = document.getElementById('fontSelect');
+                            
+                            if (layoutSelect) layoutSelect.value = this.layoutType;
+                            if (connectionSelect) connectionSelect.value = this.connectionStyle;
+                            if (fontSelect) fontSelect.value = this.fontFamily;
                         }
                         
                         this.updateCurrentMindmapInfo();
@@ -888,6 +1093,11 @@
             }
             
             async deleteMindmapFromList(id) {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法删除', 'error');
+                    return;
+                }
+                
                 if (!confirm('确定要删除这个思维导图吗？')) {
                     return;
                 }
@@ -901,7 +1111,7 @@
                         if (this.currentMindmapId === id) {
                             this.newMindmap();
                         }
-                        this.loadMindmapsList();
+                        await this.loadMindmapsList();
                         this.showNotification('删除成功', 'success');
                     } else {
                         this.showNotification('删除失败', 'error');
@@ -914,6 +1124,11 @@
             
             async deleteCurrentMindmap() {
                 if (!this.currentMindmapId) {
+                    return;
+                }
+                
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法删除', 'error');
                     return;
                 }
                 
@@ -939,62 +1154,90 @@
             }
             
             addCenterNode() {
-                const id = this.nextNodeId++;
-                const node = {
-                    id,
-                    text: '中心节点',
-                    x: 100,
-                    y: 100,
-                    children: [],
-                    isCenter: true,
-                    checked: false,
-                    parentId: null
-                };
-                this.nodes.push(node);
-                this.render();
+                console.log('addCenterNode called');
+                console.log('nextNodeId before:', this.nextNodeId);
+                
+                try {
+                    const id = this.nextNodeId++;
+                    const node = {
+                        id,
+                        text: '中心节点',
+                        x: 100,
+                        y: 100,
+                        children: [],
+                        isCenter: true,
+                        checked: false,
+                        parentId: null
+                    };
+                    
+                    console.log('Created node:', node);
+                    console.log('this.nodes before push:', this.nodes);
+                    
+                    this.nodes.push(node);
+                    
+                    console.log('this.nodes after push:', this.nodes);
+                    console.log('nextNodeId after:', this.nextNodeId);
+                    
+                    this.render();
+                    this.showNotification('已添加中心节点', 'info');
+                } catch (error) {
+                    console.error('Error in addCenterNode:', error);
+                    this.showNotification('添加中心节点失败', 'error');
+                }
             }
             
             addChildNode(parentId) {
                 const parentNode = this.nodes.find(n => n.id === parentId);
-                if (!parentNode) return;
+                if (!parentNode) {
+                    console.error('Parent node not found:', parentId);
+                    return;
+                }
                 
-                const id = this.nextNodeId++;
-                const node = {
-                    id,
-                    text: '子节点',
-                    x: 0,
-                    y: 0,
-                    children: [],
-                    isCenter: false,
-                    checked: false,
-                    parentId
-                };
-                
-                this.nodes.push(node);
-                parentNode.children.push(id);
-                this.render();
+                try {
+                    const id = this.nextNodeId++;
+                    const node = {
+                        id,
+                        text: '子节点',
+                        x: 0,
+                        y: 0,
+                        children: [],
+                        isCenter: false,
+                        checked: false,
+                        parentId
+                    };
+                    
+                    this.nodes.push(node);
+                    parentNode.children.push(id);
+                    this.render();
+                } catch (error) {
+                    console.error('Error in addChildNode:', error);
+                }
             }
             
             deleteNode(nodeId) {
                 const node = this.nodes.find(n => n.id === nodeId);
                 if (!node) return;
                 
-                const deleteRecursive = (id) => {
-                    const currentNode = this.nodes.find(n => n.id === id);
-                    if (currentNode) {
-                        currentNode.children.forEach(childId => deleteRecursive(childId));
-                        if (currentNode.parentId) {
-                            const parent = this.nodes.find(n => n.id === currentNode.parentId);
-                            if (parent) {
-                                parent.children = parent.children.filter(cId => cId !== id);
+                try {
+                    const deleteRecursive = (id) => {
+                        const currentNode = this.nodes.find(n => n.id === id);
+                        if (currentNode) {
+                            currentNode.children.forEach(childId => deleteRecursive(childId));
+                            if (currentNode.parentId) {
+                                const parent = this.nodes.find(n => n.id === currentNode.parentId);
+                                if (parent) {
+                                    parent.children = parent.children.filter(cId => cId !== id);
+                                }
                             }
+                            this.nodes = this.nodes.filter(n => n.id !== id);
                         }
-                        this.nodes = this.nodes.filter(n => n.id !== id);
-                    }
-                };
-                
-                deleteRecursive(nodeId);
-                this.render();
+                    };
+                    
+                    deleteRecursive(nodeId);
+                    this.render();
+                } catch (error) {
+                    console.error('Error in deleteNode:', error);
+                }
             }
             
             updateNodeText(nodeId, text) {
@@ -1031,14 +1274,18 @@
                 this.render();
                 
                 setTimeout(() => {
-                    const contentElement = document.querySelector(`[data-node-id="${nodeId}"] .node-content`);
-                    if (contentElement) {
-                        contentElement.focus();
-                        const range = document.createRange();
-                        range.selectNodeContents(contentElement);
-                        const selection = window.getSelection();
-                        selection.removeAllRanges();
-                        selection.addRange(range);
+                    try {
+                        const contentElement = document.querySelector(`[data-node-id="${nodeId}"] .node-content`);
+                        if (contentElement) {
+                            contentElement.focus();
+                            const range = document.createRange();
+                            range.selectNodeContents(contentElement);
+                            const selection = window.getSelection();
+                            selection.removeAllRanges();
+                            selection.addRange(range);
+                        }
+                    } catch (error) {
+                        console.error('Error in startEditing:', error);
                     }
                 }, 10);
             }
@@ -1046,6 +1293,7 @@
             showContextMenu(nodeId, x, y) {
                 this.contextMenuNodeId = nodeId;
                 const contextMenu = document.getElementById('contextMenu');
+                if (!contextMenu) return;
                 
                 const menuWidth = 120;
                 const menuHeight = 82;
@@ -1067,22 +1315,28 @@
             
             hideContextMenu() {
                 const contextMenu = document.getElementById('contextMenu');
-                contextMenu.style.display = 'none';
+                if (contextMenu) {
+                    contextMenu.style.display = 'none';
+                }
                 this.contextMenuNodeId = null;
             }
             
             calculateLayout() {
                 if (this.nodes.length === 0) return;
                 
-                this.nodes.forEach(node => {
-                    node.x = 0;
-                    node.y = 0;
-                });
-                
-                if (this.layoutType === 'right') {
-                    this.calculateRightLayout();
-                } else {
-                    this.calculateTreeLayout();
+                try {
+                    this.nodes.forEach(node => {
+                        node.x = 0;
+                        node.y = 0;
+                    });
+                    
+                    if (this.layoutType === 'right') {
+                        this.calculateRightLayout();
+                    } else {
+                        this.calculateTreeLayout();
+                    }
+                } catch (error) {
+                    console.error('Error in calculateLayout:', error);
                 }
             }
             
@@ -1204,189 +1458,232 @@
             }
             
             render() {
-                const mindMap = document.getElementById('mindMap');
-                const connections = document.getElementById('connections');
+                console.log('render called');
+                console.log('this.nodes:', this.nodes);
                 
-                this.calculateLayout();
-                
-                const existingNodes = mindMap.querySelectorAll('.node');
-                existingNodes.forEach(node => node.remove());
-                
-                connections.innerHTML = '';
-                
-                let maxX = 0;
-                let maxY = 0;
-                this.nodes.forEach(node => {
-                    maxX = Math.max(maxX, node.x + 400);
-                    maxY = Math.max(maxY, node.y + 200);
-                });
-                
-                const containerWidth = Math.max(maxX, window.innerWidth - 40);
-                const containerHeight = Math.max(maxY, window.innerHeight - 80);
-                
-                mindMap.style.width = `${containerWidth}px`;
-                mindMap.style.height = `${containerHeight}px`;
-                connections.setAttribute('width', containerWidth);
-                connections.setAttribute('height', containerHeight);
-                connections.style.width = `${containerWidth}px`;
-                connections.style.height = `${containerHeight}px`;
-                
-                this.nodes.forEach(node => {
-                    const nodeElement = this.createNodeElement(node);
-                    mindMap.appendChild(nodeElement);
-                });
-                
-                this.nodes.forEach(node => {
-                    if (node.parentId) {
-                        this.renderConnection(node.parentId, node.id);
+                try {
+                    const mindMap = document.getElementById('mindMap');
+                    const connections = document.getElementById('connections');
+                    
+                    if (!mindMap || !connections) {
+                        console.error('Required elements not found');
+                        return;
                     }
-                });
-                
-                if (this.nodes.length === 0) {
-                    const emptyMessage = document.createElement('div');
-                    emptyMessage.className = 'empty-message';
-                    emptyMessage.textContent = '点击"添加中心节点"开始创建思维导图';
-                    mindMap.appendChild(emptyMessage);
+                    
+                    this.calculateLayout();
+                    
+                    const existingNodes = mindMap.querySelectorAll('.node');
+                    console.log('Removing', existingNodes.length, 'existing nodes');
+                    existingNodes.forEach(node => node.remove());
+                    
+                    connections.innerHTML = '';
+                    
+                    let maxX = 0;
+                    let maxY = 0;
+                    this.nodes.forEach(node => {
+                        maxX = Math.max(maxX, node.x + 400);
+                        maxY = Math.max(maxY, node.y + 200);
+                    });
+                    
+                    const containerWidth = Math.max(maxX, window.innerWidth - 40);
+                    const containerHeight = Math.max(maxY, window.innerHeight - 80);
+                    
+                    mindMap.style.width = `${containerWidth}px`;
+                    mindMap.style.height = `${containerHeight}px`;
+                    connections.setAttribute('width', containerWidth);
+                    connections.setAttribute('height', containerHeight);
+                    connections.style.width = `${containerWidth}px`;
+                    connections.style.height = `${containerHeight}px`;
+                    
+                    console.log('Creating', this.nodes.length, 'nodes');
+                    this.nodes.forEach(node => {
+                        console.log('Creating node element for:', node);
+                        const nodeElement = this.createNodeElement(node);
+                        if (nodeElement) {
+                            mindMap.appendChild(nodeElement);
+                            console.log('Node element appended:', nodeElement);
+                        }
+                    });
+                    
+                    this.nodes.forEach(node => {
+                        if (node.parentId) {
+                            this.renderConnection(node.parentId, node.id);
+                        }
+                    });
+                    
+                    if (this.nodes.length === 0) {
+                        const emptyMessage = document.createElement('div');
+                        emptyMessage.className = 'empty-message';
+                        emptyMessage.textContent = '点击"添加中心节点"开始创建思维导图';
+                        mindMap.appendChild(emptyMessage);
+                        console.log('Empty message appended');
+                    }
+                    
+                    console.log('render completed');
+                } catch (error) {
+                    console.error('Error in render:', error);
                 }
             }
             
             createNodeElement(node) {
-                const div = document.createElement('div');
-                div.className = `node ${this.selectedNodeId === node.id ? 'selected' : ''}`;
-                div.style.left = `${node.x}px`;
-                div.style.top = `${node.y}px`;
-                div.dataset.nodeId = node.id;
-                
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.className = `node-checkbox ${node.checked ? 'checked' : ''}`;
-                checkbox.checked = node.checked;
-                checkbox.addEventListener('change', (e) => {
-                    e.stopPropagation();
-                    this.toggleNodeChecked(node.id);
-                });
-                
-                const content = document.createElement('div');
-                content.className = 'node-content';
-                content.textContent = node.text;
-                content.contentEditable = 'true';
-                content.style.fontFamily = this.fontFamily;
-                content.style.fontSize = '16px';
-                
-                content.addEventListener('dblclick', (e) => {
-                    e.stopPropagation();
-                    this.startEditing(node.id);
-                });
-                
-                content.addEventListener('click', (e) => {
-                    if (this.editingNodeId !== node.id) {
+                try {
+                    console.log('createNodeElement called for:', node);
+                    
+                    const div = document.createElement('div');
+                    div.className = `node ${this.selectedNodeId === node.id ? 'selected' : ''}`;
+                    div.style.left = `${node.x}px`;
+                    div.style.top = `${node.y}px`;
+                    div.dataset.nodeId = node.id;
+                    
+                    console.log('Created div:', div.outerHTML);
+                    
+                    const checkbox = document.createElement('input');
+                    checkbox.type = 'checkbox';
+                    checkbox.className = `node-checkbox ${node.checked ? 'checked' : ''}`;
+                    checkbox.checked = node.checked;
+                    checkbox.addEventListener('change', (e) => {
                         e.stopPropagation();
-                    }
-                });
-                
-                content.addEventListener('blur', (e) => {
-                    if (e.target.textContent.trim() !== node.text) {
-                        this.updateNodeText(node.id, e.target.textContent.trim());
-                    } else {
-                        this.editingNodeId = null;
-                    }
-                });
-                
-                content.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
+                        this.toggleNodeChecked(node.id);
+                    });
+                    
+                    const content = document.createElement('div');
+                    content.className = 'node-content';
+                    content.textContent = node.text;
+                    content.contentEditable = 'true';
+                    content.style.fontFamily = this.fontFamily;
+                    content.style.fontSize = '16px';
+                    
+                    content.addEventListener('dblclick', (e) => {
+                        e.stopPropagation();
+                        this.startEditing(node.id);
+                    });
+                    
+                    content.addEventListener('click', (e) => {
+                        if (this.editingNodeId !== node.id) {
+                            e.stopPropagation();
+                        }
+                    });
+                    
+                    content.addEventListener('blur', (e) => {
                         if (e.target.textContent.trim() !== node.text) {
                             this.updateNodeText(node.id, e.target.textContent.trim());
                         } else {
                             this.editingNodeId = null;
+                        }
+                    });
+                    
+                    content.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            if (e.target.textContent.trim() !== node.text) {
+                                this.updateNodeText(node.id, e.target.textContent.trim());
+                            } else {
+                                this.editingNodeId = null;
+                                e.target.blur();
+                            }
+                        }
+                        if (e.key === 'Escape') {
+                            e.preventDefault();
+                            this.editingNodeId = null;
                             e.target.blur();
                         }
-                    }
-                    if (e.key === 'Escape') {
+                    });
+                    
+                    div.appendChild(checkbox);
+                    div.appendChild(content);
+                    
+                    div.addEventListener('click', (e) => {
+                        if (e.target !== checkbox && e.target !== content) {
+                            e.stopPropagation();
+                            this.selectNode(node.id);
+                        }
+                    });
+                    
+                    div.addEventListener('contextmenu', (e) => {
                         e.preventDefault();
-                        this.editingNodeId = null;
-                        e.target.blur();
-                    }
-                });
-                
-                div.appendChild(checkbox);
-                div.appendChild(content);
-                
-                div.addEventListener('click', (e) => {
-                    if (e.target !== checkbox && e.target !== content) {
                         e.stopPropagation();
-                        this.selectNode(node.id);
-                    }
-                });
-                
-                div.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this.showContextMenu(node.id, e.clientX, e.clientY);
-                });
-                
-                return div;
+                        this.showContextMenu(node.id, e.clientX, e.clientY);
+                    });
+                    
+                    console.log('Node element created successfully:', div.outerHTML);
+                    return div;
+                } catch (error) {
+                    console.error('Error in createNodeElement:', error);
+                    return null;
+                }
             }
             
             renderConnection(parentId, childId) {
-                const parent = this.nodes.find(n => n.id === parentId);
-                const child = this.nodes.find(n => n.id === childId);
-                
-                if (!parent || !child) return;
-                
-                const connections = document.getElementById('connections');
-                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                
-                let startX, startY, endX, endY;
-                
-                if (this.layoutType === 'right') {
-                    startX = parent.x + 150;
-                    startY = parent.y + 17;
-                    endX = child.x + 8;
-                    endY = child.y + 17;
-                } else {
-                    startX = parent.x + 75;
-                    startY = parent.y + 35;
-                    endX = child.x + 75;
-                    endY = child.y + 8;
-                }
-                
-                let pathData = '';
-                
-                if (this.connectionStyle === 'curve') {
+                try {
+                    const parent = this.nodes.find(n => n.id === parentId);
+                    const child = this.nodes.find(n => n.id === childId);
+                    
+                    if (!parent || !child) return;
+                    
+                    const connections = document.getElementById('connections');
+                    if (!connections) return;
+                    
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    
+                    let startX, startY, endX, endY;
+                    
                     if (this.layoutType === 'right') {
-                        const controlX1 = startX + (endX - startX) / 2;
-                        const controlY1 = startY;
-                        const controlX2 = startX + (endX - startX) / 2;
-                        const controlY2 = endY;
-                        pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                        startX = parent.x + 150;
+                        startY = parent.y + 17;
+                        endX = child.x + 8;
+                        endY = child.y + 17;
                     } else {
-                        const controlX1 = startX;
-                        const controlY1 = startY + (endY - startY) / 2;
-                        const controlX2 = endX;
-                        const controlY2 = endY - (endY - startY) / 2;
-                        pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                        startX = parent.x + 75;
+                        startY = parent.y + 35;
+                        endX = child.x + 75;
+                        endY = child.y + 8;
                     }
-                } else if (this.connectionStyle === 'right-angle') {
-                    if (this.layoutType === 'right') {
-                        const midX = (startX + endX) / 2;
-                        pathData = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+                    
+                    let pathData = '';
+                    
+                    if (this.connectionStyle === 'curve') {
+                        if (this.layoutType === 'right') {
+                            const controlX1 = startX + (endX - startX) / 2;
+                            const controlY1 = startY;
+                            const controlX2 = startX + (endX - startX) / 2;
+                            const controlY2 = endY;
+                            pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                        } else {
+                            const controlX1 = startX;
+                            const controlY1 = startY + (endY - startY) / 2;
+                            const controlX2 = endX;
+                            const controlY2 = endY - (endY - startY) / 2;
+                            pathData = `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`;
+                        }
+                    } else if (this.connectionStyle === 'right-angle') {
+                        if (this.layoutType === 'right') {
+                            const midX = (startX + endX) / 2;
+                            pathData = `M ${startX} ${startY} L ${midX} ${startY} L ${midX} ${endY} L ${endX} ${endY}`;
+                        } else {
+                            const midY = (startY + endY) / 2;
+                            pathData = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+                        }
                     } else {
-                        const midY = (startY + endY) / 2;
-                        pathData = `M ${startX} ${startY} L ${startX} ${midY} L ${endX} ${midY} L ${endX} ${endY}`;
+                        pathData = `M ${startX} ${startY} L ${endX} ${endY}`;
                     }
-                } else {
-                    pathData = `M ${startX} ${startY} L ${endX} ${endY}`;
+                    
+                    path.setAttribute('d', pathData);
+                    path.setAttribute('class', 'connection-line');
+                    connections.appendChild(path);
+                } catch (error) {
+                    console.error('Error in renderConnection:', error);
                 }
-                
-                path.setAttribute('d', pathData);
-                path.setAttribute('class', 'connection-line');
-                connections.appendChild(path);
             }
         }
         
         document.addEventListener('DOMContentLoaded', () => {
-            new MindMap();
+            console.log('DOMContentLoaded fired');
+            try {
+                const mindMap = new MindMap();
+                console.log('MindMap instance created');
+            } catch (error) {
+                console.error('Error creating MindMap:', error);
+            }
         });
     </script>
 </body>
