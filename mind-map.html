@@ -620,7 +620,7 @@
     <div class="notification" id="notification"></div>
 
     <script>
-        const API_BASE_URL = 'http://localhost:5000/api';
+        const this.apiBaseUrl || API_BASE_URL = 'http://localhost:5000/api';
         
         class MindMap {
             constructor() {
@@ -772,25 +772,40 @@
             }
             
             async checkBackendConnection() {
-                try {
-                    const response = await fetch(`${API_BASE_URL}/health`, {
-                        method: 'GET',
-                        signal: AbortSignal.timeout(3000)
-                    });
-                    
-                    if (response.ok) {
-                        this.backendConnected = true;
-                        this.updateConnectionStatus(true);
-                        console.log('Backend connected successfully');
-                    } else {
-                        this.backendConnected = false;
-                        this.updateConnectionStatus(false);
+                const apiUrls = [
+                    'http://127.0.0.1:5000/api',
+                    'http://localhost:5000/api'
+                ];
+                
+                for (const url of apiUrls) {
+                    try {
+                        console.log(`Trying to connect to ${url}/health`);
+                        
+                        const controller = new AbortController();
+                        const timeoutId = setTimeout(() => controller.abort(), 3000);
+                        
+                        const response = await fetch(`${url}/health`, {
+                            method: 'GET',
+                            signal: controller.signal
+                        });
+                        
+                        clearTimeout(timeoutId);
+                        
+                        if (response.ok) {
+                            this.apiBaseUrl = url;
+                            this.backendConnected = true;
+                            this.updateConnectionStatus(true);
+                            console.log(`Backend connected successfully at ${url}`);
+                            return;
+                        }
+                    } catch (error) {
+                        console.log(`Failed to connect to ${url}:`, error.message);
                     }
-                } catch (error) {
-                    console.log('Backend not connected:', error.message);
-                    this.backendConnected = false;
-                    this.updateConnectionStatus(false);
                 }
+                
+                this.backendConnected = false;
+                this.updateConnectionStatus(false);
+                console.log('Failed to connect to any backend server');
             }
             
             updateConnectionStatus(connected) {
@@ -851,7 +866,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/mindmaps`);
+                    const response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps`);
                     if (response.ok) {
                         this.mindmaps = await response.json();
                         this.renderMindmapList();
@@ -1019,7 +1034,7 @@
                     let response;
                     
                     if (this.currentMindmapId) {
-                        response = await fetch(`${API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
+                        response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
                             method: 'PUT',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1030,7 +1045,7 @@
                             })
                         });
                     } else {
-                        response = await fetch(`${API_BASE_URL}/mindmaps`, {
+                        response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps`, {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1066,7 +1081,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/mindmaps/${id}`);
+                    const response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps/${id}`);
                     if (response.ok) {
                         const mindmap = await response.json();
                         
@@ -1113,7 +1128,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/mindmaps/${id}`, {
+                    const response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps/${id}`, {
                         method: 'DELETE'
                     });
                     
@@ -1147,7 +1162,7 @@
                 }
                 
                 try {
-                    const response = await fetch(`${API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
+                    const response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
                         method: 'DELETE'
                     });
                     
