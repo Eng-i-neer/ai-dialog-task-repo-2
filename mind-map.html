@@ -540,10 +540,12 @@
         <div class="connection-status" id="connectionStatus">
             <span class="status-dot disconnected" id="statusDot"></span>
             <span id="statusText">后端未连接</span>
+            <button id="reconnectBtn" style="margin-left: 5px; padding: 2px 8px; font-size: 12px;">重试</button>
         </div>
         <div class="toolbar-separator"></div>
+        <button id="addCenterNode" class="primary">添加中心节点</button>
         <button id="newMindmapBtn">新建</button>
-        <button id="saveMindmapBtn" class="primary">保存</button>
+        <button id="saveMindmapBtn">保存</button>
         <button id="loadMindmapBtn">加载</button>
         <button id="deleteMindmapBtn" class="danger" style="display: none;">删除</button>
         <div class="toolbar-separator"></div>
@@ -729,6 +731,14 @@
                 document.getElementById('deleteMindmapBtn').addEventListener('click', (e) => {
                     e.stopPropagation();
                     this.deleteCurrentMindmap();
+                });
+                
+                document.getElementById('reconnectBtn').addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    await this.checkBackendConnection();
+                    if (this.backendConnected) {
+                        await this.loadMindmapsList();
+                    }
                 });
                 
                 document.getElementById('sidebarClose').addEventListener('click', (e) => {
