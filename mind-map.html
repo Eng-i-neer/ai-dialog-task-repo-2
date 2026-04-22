@@ -52,6 +52,28 @@
             background-color: #d9d9d9;
         }
         
+        .toolbar button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .toolbar button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+        }
+        
+        .toolbar button.danger {
+            background-color: #ff4d4f;
+            border-color: #ff4d4f;
+            color: #ffffff;
+        }
+        
+        .toolbar button.danger:hover {
+            background-color: #ff7875;
+            border-color: #ff7875;
+        }
+        
         .toolbar select {
             padding: 6px 12px;
             font-size: 14px;
@@ -59,6 +81,15 @@
             border-radius: 4px;
             background-color: #ffffff;
             cursor: pointer;
+        }
+        
+        .toolbar input[type="text"] {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            min-width: 150px;
         }
         
         .mind-map-container {
@@ -198,11 +229,289 @@
         .context-menu-item.delete-item:hover {
             background-color: #fff2f0;
         }
+        
+        .sidebar {
+            position: fixed;
+            top: 50px;
+            left: 0;
+            width: 250px;
+            height: calc(100vh - 50px);
+            background-color: #fafafa;
+            border-right: 1px solid #e0e0e0;
+            z-index: 999;
+            overflow-y: auto;
+            display: none;
+        }
+        
+        .sidebar.show {
+            display: block;
+        }
+        
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .sidebar-header h3 {
+            font-size: 16px;
+            font-weight: 600;
+        }
+        
+        .sidebar-close {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+        }
+        
+        .sidebar-close:hover {
+            color: #333;
+        }
+        
+        .mindmap-list {
+            padding: 10px;
+        }
+        
+        .mindmap-item {
+            padding: 10px;
+            border-bottom: 1px solid #e0e0e0;
+            cursor: pointer;
+            border-radius: 4px;
+            margin-bottom: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .mindmap-item:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .mindmap-item.active {
+            background-color: #e6f7ff;
+            border-color: #1890ff;
+        }
+        
+        .mindmap-item-name {
+            font-weight: 500;
+            margin-bottom: 5px;
+            word-break: break-all;
+        }
+        
+        .mindmap-item-time {
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .mindmap-item-actions {
+            display: flex;
+            gap: 5px;
+            margin-top: 8px;
+        }
+        
+        .mindmap-item-actions button {
+            padding: 4px 8px;
+            font-size: 12px;
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+        
+        .mindmap-item-actions button:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .mindmap-item-actions button.delete-btn {
+            color: #ff4d4f;
+            border-color: #ff4d4f;
+        }
+        
+        .mindmap-item-actions button.delete-btn:hover {
+            background-color: #fff2f0;
+        }
+        
+        .main-content {
+            margin-left: 0;
+            transition: margin-left 0.3s;
+        }
+        
+        .main-content.with-sidebar {
+            margin-left: 250px;
+        }
+        
+        .save-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 3000;
+            padding: 20px;
+            min-width: 300px;
+            display: none;
+        }
+        
+        .save-dialog.show {
+            display: block;
+        }
+        
+        .save-dialog-header {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 15px;
+        }
+        
+        .save-dialog-content {
+            margin-bottom: 15px;
+        }
+        
+        .save-dialog-content label {
+            display: block;
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+        
+        .save-dialog-content input {
+            width: 100%;
+            padding: 8px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+        }
+        
+        .save-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        
+        .save-dialog-actions button {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+        
+        .save-dialog-actions button:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .save-dialog-actions button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .save-dialog-actions button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+        }
+        
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 2999;
+            display: none;
+        }
+        
+        .overlay.show {
+            display: block;
+        }
+        
+        .notification {
+            position: fixed;
+            top: 60px;
+            right: 20px;
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+            z-index: 4000;
+            padding: 12px 20px;
+            display: none;
+            animation: slideIn 0.3s ease;
+        }
+        
+        .notification.show {
+            display: block;
+        }
+        
+        .notification.success {
+            border-left: 4px solid #52c41a;
+        }
+        
+        .notification.error {
+            border-left: 4px solid #ff4d4f;
+        }
+        
+        .notification.info {
+            border-left: 4px solid #1890ff;
+        }
+        
+        @keyframes slideIn {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        
+        .current-mindmap-info {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: auto;
+        }
+        
+        .current-mindmap-info span {
+            font-size: 14px;
+            color: #666;
+        }
+        
+        .current-mindmap-info .name {
+            font-weight: 600;
+            color: #333;
+            max-width: 200px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        
+        .toolbar-separator {
+            width: 1px;
+            height: 24px;
+            background-color: #e0e0e0;
+            margin: 0 5px;
+        }
     </style>
 </head>
 <body>
     <div class="toolbar">
-        <button id="addCenterNode">添加中心节点</button>
+        <div class="current-mindmap-info">
+            <span>当前：</span>
+            <span class="name" id="currentMindmapName">新思维导图</span>
+        </div>
+        <div class="toolbar-separator"></div>
+        <button id="newMindmapBtn">新建</button>
+        <button id="saveMindmapBtn" class="primary">保存</button>
+        <button id="loadMindmapBtn">加载</button>
+        <button id="deleteMindmapBtn" class="danger" style="display: none;">删除</button>
+        <div class="toolbar-separator"></div>
         <div class="layout-selector">
             <label for="layoutSelect">布局：</label>
             <select id="layoutSelect">
@@ -235,9 +544,20 @@
         </div>
     </div>
     
-    <div class="mind-map-container">
-        <div class="mind-map" id="mindMap">
-            <svg class="connections" id="connections"></svg>
+    <div class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <h3>思维导图列表</h3>
+            <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="mindmap-list" id="mindmapList">
+        </div>
+    </div>
+    
+    <div class="main-content" id="mainContent">
+        <div class="mind-map-container">
+            <div class="mind-map" id="mindMap">
+                <svg class="connections" id="connections"></svg>
+            </div>
         </div>
     </div>
     
@@ -245,8 +565,26 @@
         <div class="context-menu-item" id="addChildMenuItem">添加子节点</div>
         <div class="context-menu-item delete-item" id="deleteMenuItem">删除</div>
     </div>
+    
+    <div class="save-dialog" id="saveDialog">
+        <div class="save-dialog-header">保存思维导图</div>
+        <div class="save-dialog-content">
+            <label for="mindmapNameInput">名称：</label>
+            <input type="text" id="mindmapNameInput" placeholder="请输入思维导图名称">
+        </div>
+        <div class="save-dialog-actions">
+            <button id="cancelSaveBtn">取消</button>
+            <button id="confirmSaveBtn" class="primary">保存</button>
+        </div>
+    </div>
+    
+    <div class="overlay" id="overlay"></div>
+    
+    <div class="notification" id="notification"></div>
 
     <script>
+        const API_BASE_URL = 'http://localhost:5000/api';
+        
         class MindMap {
             constructor() {
                 this.nodes = [];
@@ -257,11 +595,14 @@
                 this.selectedNodeId = null;
                 this.editingNodeId = null;
                 this.contextMenuNodeId = null;
+                this.currentMindmapId = null;
+                this.currentMindmapName = '新思维导图';
+                this.mindmaps = [];
                 
                 this.init();
             }
             
-            init() {
+            async init() {
                 document.getElementById('addCenterNode').addEventListener('click', () => this.addCenterNode());
                 document.getElementById('layoutSelect').addEventListener('change', (e) => {
                     this.layoutType = e.target.value;
@@ -305,10 +646,295 @@
                 document.addEventListener('keydown', (e) => {
                     if (e.key === 'Escape') {
                         this.hideContextMenu();
+                        this.hideSaveDialog();
                     }
                 });
                 
+                document.getElementById('newMindmapBtn').addEventListener('click', () => this.newMindmap());
+                document.getElementById('saveMindmapBtn').addEventListener('click', () => this.showSaveDialog());
+                document.getElementById('loadMindmapBtn').addEventListener('click', () => this.toggleSidebar());
+                document.getElementById('deleteMindmapBtn').addEventListener('click', () => this.deleteCurrentMindmap());
+                
+                document.getElementById('sidebarClose').addEventListener('click', () => this.hideSidebar());
+                document.getElementById('overlay').addEventListener('click', () => this.hideSaveDialog());
+                document.getElementById('cancelSaveBtn').addEventListener('click', () => this.hideSaveDialog());
+                document.getElementById('confirmSaveBtn').addEventListener('click', () => this.saveMindmap());
+                
+                document.getElementById('mindmapNameInput').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        this.saveMindmap();
+                    }
+                });
+                
+                await this.loadMindmapsList();
                 this.render();
+            }
+            
+            showNotification(message, type = 'info') {
+                const notification = document.getElementById('notification');
+                notification.textContent = message;
+                notification.className = `notification show ${type}`;
+                
+                setTimeout(() => {
+                    notification.classList.remove('show');
+                }, 3000);
+            }
+            
+            updateCurrentMindmapInfo() {
+                const nameElement = document.getElementById('currentMindmapName');
+                nameElement.textContent = this.currentMindmapName;
+                document.getElementById('deleteMindmapBtn').style.display = this.currentMindmapId ? 'inline-block' : 'none';
+            }
+            
+            async loadMindmapsList() {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps`);
+                    if (response.ok) {
+                        this.mindmaps = await response.json();
+                        this.renderMindmapList();
+                    }
+                } catch (error) {
+                    console.error('Failed to load mindmaps list:', error);
+                }
+            }
+            
+            renderMindmapList() {
+                const listContainer = document.getElementById('mindmapList');
+                listContainer.innerHTML = '';
+                
+                if (this.mindmaps.length === 0) {
+                    listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无保存的思维导图</div>';
+                    return;
+                }
+                
+                this.mindmaps.forEach(mindmap => {
+                    const item = document.createElement('div');
+                    item.className = `mindmap-item ${mindmap.id === this.currentMindmapId ? 'active' : ''}`;
+                    item.innerHTML = `
+                        <div class="mindmap-item-name">${this.escapeHtml(mindmap.name)}</div>
+                        <div class="mindmap-item-time">更新于 ${mindmap.updated_at}</div>
+                        <div class="mindmap-item-actions">
+                            <button class="load-btn" data-id="${mindmap.id}">加载</button>
+                            <button class="delete-btn" data-id="${mindmap.id}">删除</button>
+                        </div>
+                    `;
+                    
+                    item.querySelector('.load-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.loadMindmap(mindmap.id);
+                    });
+                    
+                    item.querySelector('.delete-btn').addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.deleteMindmapFromList(mindmap.id);
+                    });
+                    
+                    listContainer.appendChild(item);
+                });
+            }
+            
+            escapeHtml(text) {
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+            
+            toggleSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                if (sidebar.classList.contains('show')) {
+                    this.hideSidebar();
+                } else {
+                    this.showSidebar();
+                }
+            }
+            
+            showSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                sidebar.classList.add('show');
+                mainContent.classList.add('with-sidebar');
+                this.loadMindmapsList();
+            }
+            
+            hideSidebar() {
+                const sidebar = document.getElementById('sidebar');
+                const mainContent = document.getElementById('mainContent');
+                
+                sidebar.classList.remove('show');
+                mainContent.classList.remove('with-sidebar');
+            }
+            
+            showSaveDialog() {
+                const dialog = document.getElementById('saveDialog');
+                const overlay = document.getElementById('overlay');
+                const input = document.getElementById('mindmapNameInput');
+                
+                input.value = this.currentMindmapName;
+                dialog.classList.add('show');
+                overlay.classList.add('show');
+                input.focus();
+                input.select();
+            }
+            
+            hideSaveDialog() {
+                const dialog = document.getElementById('saveDialog');
+                const overlay = document.getElementById('overlay');
+                
+                dialog.classList.remove('show');
+                overlay.classList.remove('show');
+            }
+            
+            newMindmap() {
+                this.nodes = [];
+                this.nextNodeId = 1;
+                this.currentMindmapId = null;
+                this.currentMindmapName = '新思维导图';
+                this.updateCurrentMindmapInfo();
+                this.render();
+                this.showNotification('已创建新思维导图', 'info');
+            }
+            
+            async saveMindmap() {
+                const name = document.getElementById('mindmapNameInput').value.trim() || '未命名思维导图';
+                
+                const mindmapData = {
+                    nodes: this.nodes,
+                    nextNodeId: this.nextNodeId,
+                    layoutType: this.layoutType,
+                    connectionStyle: this.connectionStyle,
+                    fontFamily: this.fontFamily
+                };
+                
+                try {
+                    let response;
+                    
+                    if (this.currentMindmapId) {
+                        response = await fetch(`${API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: name,
+                                data: mindmapData
+                            })
+                        });
+                    } else {
+                        response = await fetch(`${API_BASE_URL}/mindmaps`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: name,
+                                data: mindmapData
+                            })
+                        });
+                    }
+                    
+                    if (response.ok) {
+                        const savedMindmap = await response.json();
+                        this.currentMindmapId = savedMindmap.id;
+                        this.currentMindmapName = savedMindmap.name;
+                        this.updateCurrentMindmapInfo();
+                        this.hideSaveDialog();
+                        this.showNotification('保存成功', 'success');
+                        this.loadMindmapsList();
+                    } else {
+                        this.showNotification('保存失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to save mindmap:', error);
+                    this.showNotification('保存失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            async loadMindmap(id) {
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps/${id}`);
+                    if (response.ok) {
+                        const mindmap = await response.json();
+                        
+                        this.currentMindmapId = mindmap.id;
+                        this.currentMindmapName = mindmap.name;
+                        
+                        if (mindmap.data) {
+                            this.nodes = mindmap.data.nodes || [];
+                            this.nextNodeId = mindmap.data.nextNodeId || 1;
+                            this.layoutType = mindmap.data.layoutType || 'right';
+                            this.connectionStyle = mindmap.data.connectionStyle || 'curve';
+                            this.fontFamily = mindmap.data.fontFamily || "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+                            
+                            document.getElementById('layoutSelect').value = this.layoutType;
+                            document.getElementById('connectionStyleSelect').value = this.connectionStyle;
+                            document.getElementById('fontSelect').value = this.fontFamily;
+                        }
+                        
+                        this.updateCurrentMindmapInfo();
+                        this.render();
+                        this.hideSidebar();
+                        this.showNotification(`已加载：${mindmap.name}`, 'success');
+                    } else {
+                        this.showNotification('加载失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to load mindmap:', error);
+                    this.showNotification('加载失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            async deleteMindmapFromList(id) {
+                if (!confirm('确定要删除这个思维导图吗？')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        if (this.currentMindmapId === id) {
+                            this.newMindmap();
+                        }
+                        this.loadMindmapsList();
+                        this.showNotification('删除成功', 'success');
+                    } else {
+                        this.showNotification('删除失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete mindmap:', error);
+                    this.showNotification('删除失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            async deleteCurrentMindmap() {
+                if (!this.currentMindmapId) {
+                    return;
+                }
+                
+                if (!confirm('确定要删除当前思维导图吗？')) {
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        this.newMindmap();
+                        this.showNotification('删除成功', 'success');
+                    } else {
+                        this.showNotification('删除失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete mindmap:', error);
+                    this.showNotification('删除失败：无法连接到服务器', 'error');
+                }
             }
             
             addCenterNode() {
