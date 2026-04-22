@@ -1,0 +1,680 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>思维导图</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #ffffff;
+            color: #333333;
+            overflow: auto;
+        }
+        
+        .toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 50px;
+            background-color: #f5f5f5;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+            gap: 15px;
+        }
+        
+        .toolbar button {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .toolbar button:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .toolbar button:active {
+            background-color: #d9d9d9;
+        }
+        
+        .toolbar select {
+            padding: 6px 12px;
+            font-size: 14px;
+            border: 1px solid #cccccc;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+        }
+        
+        .mind-map-container {
+            margin-top: 60px;
+            padding: 20px;
+            min-height: calc(100vh - 60px);
+            position: relative;
+            overflow: visible;
+        }
+        
+        .mind-map {
+            position: relative;
+            min-width: 100%;
+            min-height: 100%;
+        }
+        
+        .node {
+            position: absolute;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+            white-space: nowrap;
+            z-index: 10;
+        }
+        
+        .node:hover {
+            background-color: #f0f0f0;
+        }
+        
+        .node.selected {
+            background-color: #e6f7ff;
+            border: 1px solid #1890ff;
+        }
+        
+        .node-checkbox {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            flex-shrink: 0;
+        }
+        
+        .node-checkbox.checked {
+            background-color: #52c41a;
+            border-color: #52c41a;
+        }
+        
+        .node-content {
+            font-size: 16px;
+            line-height: 1.5;
+            outline: none;
+            min-width: 20px;
+            min-height: 1.5em;
+        }
+        
+        .node-content:focus {
+            background-color: #ffffff;
+            padding: 2px 4px;
+            border-radius: 2px;
+        }
+        
+        .node-actions {
+            display: none;
+            gap: 4px;
+            margin-left: 8px;
+        }
+        
+        .node:hover .node-actions {
+            display: flex;
+        }
+        
+        .node-actions button {
+            padding: 2px 6px;
+            font-size: 12px;
+            border: 1px solid #cccccc;
+            border-radius: 3px;
+            background-color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .node-actions button:hover {
+            background-color: #e8e8e8;
+        }
+        
+        .node-actions button.delete-btn {
+            color: #ff4d4f;
+            border-color: #ff4d4f;
+        }
+        
+        .node-actions button.delete-btn:hover {
+            background-color: #fff2f0;
+        }
+        
+        .connections {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .connection-line {
+            stroke: #333333;
+            stroke-width: 1.5;
+            fill: none;
+        }
+        
+        .layout-selector {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .layout-selector label {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        
+        .empty-message {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 18px;
+            color: #999999;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <div class="toolbar">
+        <button id="addCenterNode">添加中心节点</button>
+        <div class="layout-selector">
+            <label for="layoutSelect">布局方式：</label>
+            <select id="layoutSelect">
+                <option value="right">右向布局</option>
+                <option value="tree">树状图布局</option>
+            </select>
+        </div>
+    </div>
+    
+    <div class="mind-map-container">
+        <div class="mind-map" id="mindMap">
+            <svg class="connections" id="connections"></svg>
+        </div>
+    </div>
+
+    <script>
+        // 思维导图应用
+        class MindMap {
+            constructor() {
+                this.nodes = [];
+                this.connections = [];
+                this.layoutType = 'right'; // 'right' 或 'tree'
+                this.nextNodeId = 1;
+                this.selectedNodeId = null;
+                
+                this.init();
+            }
+            
+            init() {
+                // 绑定事件
+                document.getElementById('addCenterNode').addEventListener('click', () => this.addCenterNode());
+                document.getElementById('layoutSelect').addEventListener('change', (e) => {
+                    this.layoutType = e.target.value;
+                    this.render();
+                });
+                
+                // 点击空白处取消选中
+                document.getElementById('mindMap').addEventListener('click', (e) => {
+                    if (e.target.id === 'mindMap' || e.target.id === 'connections') {
+                        this.deselectAll();
+                    }
+                });
+                
+                // 初始渲染
+                this.render();
+            }
+            
+            // 添加中心节点
+            addCenterNode() {
+                const id = this.nextNodeId++;
+                const node = {
+                    id,
+                    text: '中心节点',
+                    x: 100,
+                    y: 100,
+                    children: [],
+                    isCenter: true,
+                    checked: false,
+                    parentId: null
+                };
+                this.nodes.push(node);
+                this.render();
+            }
+            
+            // 添加子节点
+            addChildNode(parentId) {
+                const parentNode = this.nodes.find(n => n.id === parentId);
+                if (!parentNode) return;
+                
+                const id = this.nextNodeId++;
+                const node = {
+                    id,
+                    text: '子节点',
+                    x: 0,
+                    y: 0,
+                    children: [],
+                    isCenter: false,
+                    checked: false,
+                    parentId
+                };
+                
+                this.nodes.push(node);
+                parentNode.children.push(id);
+                this.render();
+            }
+            
+            // 删除节点
+            deleteNode(nodeId) {
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (!node) return;
+                
+                // 递归删除所有子节点
+                const deleteRecursive = (id) => {
+                    const currentNode = this.nodes.find(n => n.id === id);
+                    if (currentNode) {
+                        // 删除子节点
+                        currentNode.children.forEach(childId => deleteRecursive(childId));
+                        // 从父节点的children中移除
+                        if (currentNode.parentId) {
+                            const parent = this.nodes.find(n => n.id === currentNode.parentId);
+                            if (parent) {
+                                parent.children = parent.children.filter(id => id !== id);
+                            }
+                        }
+                        // 移除节点
+                        this.nodes = this.nodes.filter(n => n.id !== id);
+                    }
+                };
+                
+                deleteRecursive(nodeId);
+                this.render();
+            }
+            
+            // 更新节点文本
+            updateNodeText(nodeId, text) {
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (node) {
+                    node.text = text;
+                    this.render();
+                }
+            }
+            
+            // 切换节点复选框状态
+            toggleNodeChecked(nodeId) {
+                const node = this.nodes.find(n => n.id === nodeId);
+                if (node) {
+                    node.checked = !node.checked;
+                    this.render();
+                }
+            }
+            
+            // 选中节点
+            selectNode(nodeId) {
+                this.selectedNodeId = nodeId;
+                this.render();
+            }
+            
+            // 取消所有选中
+            deselectAll() {
+                this.selectedNodeId = null;
+                this.render();
+            }
+            
+            // 计算布局
+            calculateLayout() {
+                if (this.nodes.length === 0) return;
+                
+                // 重置所有节点位置
+                this.nodes.forEach(node => {
+                    node.x = 0;
+                    node.y = 0;
+                });
+                
+                if (this.layoutType === 'right') {
+                    this.calculateRightLayout();
+                } else {
+                    this.calculateTreeLayout();
+                }
+            }
+            
+            // 右向布局计算
+            calculateRightLayout() {
+                const centerNodes = this.nodes.filter(n => n.isCenter);
+                const nodeHeight = 35;
+                const levelWidth = 200;
+                const verticalGap = 15;
+                
+                let totalCenterHeight = 0;
+                
+                // 计算每个中心节点及其子树的高度
+                const getSubtreeHeight = (nodeId) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node || node.children.length === 0) return nodeHeight;
+                    
+                    let totalHeight = 0;
+                    node.children.forEach(childId => {
+                        totalHeight += getSubtreeHeight(childId) + verticalGap;
+                    });
+                    totalHeight -= verticalGap; // 减去最后一个gap
+                    
+                    return Math.max(nodeHeight, totalHeight);
+                };
+                
+                // 计算所有中心节点的总高度
+                centerNodes.forEach(centerNode => {
+                    const subtreeHeight = getSubtreeHeight(centerNode.id);
+                    totalCenterHeight += subtreeHeight + verticalGap;
+                });
+                if (centerNodes.length > 0) totalCenterHeight -= verticalGap; // 减去最后一个gap
+                
+                // 从顶部开始布局
+                let currentY = 50;
+                
+                // 布局每个中心节点及其子树
+                const layoutRightSubtree = (nodeId, level, startY, allocatedHeight) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node) return startY;
+                    
+                    // 计算节点位置
+                    node.x = 100 + level * levelWidth;
+                    
+                    if (node.children.length === 0) {
+                        // 叶子节点
+                        node.y = startY;
+                        return startY + nodeHeight;
+                    } else {
+                        // 非叶子节点，需要居中
+                        // 先计算所有子节点的总高度
+                        let childrenTotalHeight = 0;
+                        node.children.forEach(childId => {
+                            childrenTotalHeight += getSubtreeHeight(childId) + verticalGap;
+                        });
+                        childrenTotalHeight -= verticalGap; // 减去最后一个gap
+                        
+                        // 计算当前节点的Y位置（居中）
+                        const availableHeight = Math.max(nodeHeight, childrenTotalHeight);
+                        node.y = startY + (availableHeight - nodeHeight) / 2;
+                        
+                        // 布局子节点
+                        let childY = startY;
+                        node.children.forEach(childId => {
+                            const childSubtreeHeight = getSubtreeHeight(childId);
+                            layoutRightSubtree(childId, level + 1, childY, childSubtreeHeight);
+                            childY += childSubtreeHeight + verticalGap;
+                        });
+                        
+                        return startY + availableHeight;
+                    }
+                };
+                
+                // 布局所有中心节点
+                centerNodes.forEach(centerNode => {
+                    const subtreeHeight = getSubtreeHeight(centerNode.id);
+                    layoutRightSubtree(centerNode.id, 0, currentY, subtreeHeight);
+                    currentY += subtreeHeight + verticalGap;
+                });
+            }
+            
+            // 树状图布局计算
+            calculateTreeLayout() {
+                const centerNodes = this.nodes.filter(n => n.isCenter);
+                const nodeHeight = 35;
+                const levelHeight = 80;
+                const horizontalGap = 20;
+                
+                // 递归计算子树宽度
+                const getSubtreeWidth = (nodeId) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node || node.children.length === 0) {
+                        return 120; // 最小宽度
+                    }
+                    
+                    let totalWidth = 0;
+                    node.children.forEach(childId => {
+                        totalWidth += getSubtreeWidth(childId) + horizontalGap;
+                    });
+                    totalWidth -= horizontalGap; // 减去最后一个gap
+                    
+                    return Math.max(120, totalWidth);
+                };
+                
+                // 布局树状结构
+                const layoutTreeSubtree = (nodeId, level, startX, allocatedWidth) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node) return startX;
+                    
+                    // 计算节点Y位置
+                    node.y = 50 + level * levelHeight;
+                    
+                    if (node.children.length === 0) {
+                        // 叶子节点
+                        node.x = startX + (allocatedWidth - 120) / 2;
+                        return startX + allocatedWidth;
+                    } else {
+                        // 非叶子节点，需要居中
+                        // 先计算所有子节点的总宽度
+                        let childrenTotalWidth = 0;
+                        node.children.forEach(childId => {
+                            childrenTotalWidth += getSubtreeWidth(childId) + horizontalGap;
+                        });
+                        childrenTotalWidth -= horizontalGap; // 减去最后一个gap
+                        
+                        // 计算当前节点的X位置（居中）
+                        const availableWidth = Math.max(120, childrenTotalWidth);
+                        node.x = startX + (availableWidth - 120) / 2;
+                        
+                        // 布局子节点
+                        let childX = startX;
+                        node.children.forEach(childId => {
+                            const childSubtreeWidth = getSubtreeWidth(childId);
+                            layoutTreeSubtree(childId, level + 1, childX, childSubtreeWidth);
+                            childX += childSubtreeWidth + horizontalGap;
+                        });
+                        
+                        return startX + availableWidth;
+                    }
+                };
+                
+                // 布局所有中心节点
+                let currentX = 50;
+                centerNodes.forEach(centerNode => {
+                    const subtreeWidth = getSubtreeWidth(centerNode.id);
+                    layoutTreeSubtree(centerNode.id, 0, currentX, subtreeWidth);
+                    currentX += subtreeWidth + 100; // 中心节点之间的间距
+                });
+            }
+            
+            // 渲染思维导图
+            render() {
+                const mindMap = document.getElementById('mindMap');
+                const connections = document.getElementById('connections');
+                
+                // 计算布局
+                this.calculateLayout();
+                
+                // 清空现有内容（保留connections svg）
+                const existingNodes = mindMap.querySelectorAll('.node');
+                existingNodes.forEach(node => node.remove());
+                
+                // 清空连接线
+                connections.innerHTML = '';
+                
+                // 计算画布大小
+                let maxX = 0;
+                let maxY = 0;
+                this.nodes.forEach(node => {
+                    maxX = Math.max(maxX, node.x + 200);
+                    maxY = Math.max(maxY, node.y + 100);
+                });
+                
+                // 设置mindMap和connections的大小
+                mindMap.style.width = `${Math.max(maxX, window.innerWidth)}px`;
+                mindMap.style.height = `${Math.max(maxY, window.innerHeight)}px`;
+                connections.setAttribute('width', Math.max(maxX, window.innerWidth));
+                connections.setAttribute('height', Math.max(maxY, window.innerHeight));
+                
+                // 渲染节点
+                this.nodes.forEach(node => {
+                    const nodeElement = this.createNodeElement(node);
+                    mindMap.appendChild(nodeElement);
+                    
+                    // 渲染连接线
+                    if (node.parentId) {
+                        this.renderConnection(node.parentId, node.id);
+                    }
+                });
+                
+                // 显示空状态
+                if (this.nodes.length === 0) {
+                    const emptyMessage = document.createElement('div');
+                    emptyMessage.className = 'empty-message';
+                    emptyMessage.textContent = '点击"添加中心节点"开始创建思维导图';
+                    mindMap.appendChild(emptyMessage);
+                }
+            }
+            
+            // 创建节点元素
+            createNodeElement(node) {
+                const div = document.createElement('div');
+                div.className = `node ${this.selectedNodeId === node.id ? 'selected' : ''}`;
+                div.style.left = `${node.x}px`;
+                div.style.top = `${node.y}px`;
+                div.dataset.nodeId = node.id;
+                
+                // 复选框
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = `node-checkbox ${node.checked ? 'checked' : ''}`;
+                checkbox.checked = node.checked;
+                checkbox.addEventListener('change', () => this.toggleNodeChecked(node.id));
+                
+                // 内容
+                const content = document.createElement('div');
+                content.className = 'node-content';
+                content.textContent = node.text;
+                content.contentEditable = 'true';
+                content.addEventListener('blur', (e) => {
+                    if (e.target.textContent.trim() !== node.text) {
+                        this.updateNodeText(node.id, e.target.textContent.trim());
+                    }
+                });
+                content.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        if (e.target.textContent.trim() !== node.text) {
+                            this.updateNodeText(node.id, e.target.textContent.trim());
+                        }
+                        e.target.blur();
+                    }
+                });
+                
+                // 操作按钮
+                const actions = document.createElement('div');
+                actions.className = 'node-actions';
+                
+                const addBtn = document.createElement('button');
+                addBtn.textContent = '添加子节点';
+                addBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.addChildNode(node.id);
+                });
+                
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'delete-btn';
+                deleteBtn.textContent = '删除';
+                deleteBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.deleteNode(node.id);
+                });
+                
+                actions.appendChild(addBtn);
+                actions.appendChild(deleteBtn);
+                
+                div.appendChild(checkbox);
+                div.appendChild(content);
+                div.appendChild(actions);
+                
+                div.addEventListener('click', (e) => {
+                    if (e.target !== addBtn && e.target !== deleteBtn && e.target !== checkbox) {
+                        e.stopPropagation();
+                        this.selectNode(node.id);
+                    }
+                });
+                
+                return div;
+            }
+            
+            // 渲染连接线
+            renderConnection(parentId, childId) {
+                const parent = this.nodes.find(n => n.id === parentId);
+                const child = this.nodes.find(n => n.id === childId);
+                
+                if (!parent || !child) return;
+                
+                const connections = document.getElementById('connections');
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                
+                // 计算连接点
+                let startX, startY, endX, endY;
+                
+                if (this.layoutType === 'right') {
+                    // 右向布局：从父节点右侧连接到子节点左侧
+                    startX = parent.x + 180; // 节点右侧
+                    startY = parent.y + 17; // 节点中心
+                    endX = child.x + 8; // 节点左侧
+                    endY = child.y + 17; // 节点中心
+                    
+                    // 贝塞尔曲线控制点
+                    const controlX1 = startX + (endX - startX) / 2;
+                    const controlY1 = startY;
+                    const controlX2 = startX + (endX - startX) / 2;
+                    const controlY2 = endY;
+                    
+                    path.setAttribute('d', `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`);
+                } else {
+                    // 树状图布局：从父节点底部连接到子节点顶部
+                    startX = parent.x + 60; // 节点中心
+                    startY = parent.y + 35; // 节点底部
+                    endX = child.x + 60; // 节点中心
+                    endY = child.y + 8; // 节点顶部
+                    
+                    // 贝塞尔曲线控制点
+                    const controlX1 = startX;
+                    const controlY1 = startY + (endY - startY) / 2;
+                    const controlX2 = endX;
+                    const controlY2 = endY - (endY - startY) / 2;
+                    
+                    path.setAttribute('d', `M ${startX} ${startY} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${endX} ${endY}`);
+                }
+                
+                path.className = 'connection-line';
+                connections.appendChild(path);
+            }
+        }
+        
+        // 初始化应用
+        document.addEventListener('DOMContentLoaded', () => {
+            new MindMap();
+        });
+    </script>
+</body>
+</html>
