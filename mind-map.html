@@ -2019,11 +2019,16 @@
                         });
                         
                         const firstChildStartY = childHeights[0].startY;
+                        const lastChildStartY = childHeights[childHeights.length - 1].startY;
                         const lastChildEndY = childHeights[childHeights.length - 1].endY;
-                        const childrenTotalHeight = lastChildEndY - firstChildStartY;
                         
-                        const parentCenterY = firstChildStartY + childrenTotalHeight / 2;
-                        node.y = parentCenterY - nodeHeight / 2;
+                        const firstChildCenterY = firstChildStartY + nodeHeight / 2;
+                        const lastChildCenterY = lastChildStartY + nodeHeight / 2;
+                        
+                        const childrenCenterY = (firstChildCenterY + lastChildCenterY) / 2;
+                        node.y = childrenCenterY - nodeHeight / 2;
+                        
+                        const childrenTotalHeight = lastChildEndY - firstChildStartY;
                         
                         return { 
                             y: lastChildEndY, 
