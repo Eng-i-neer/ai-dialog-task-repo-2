@@ -2220,6 +2220,59 @@
                 }
             }
             
+            reLayout() {
+                try {
+                    const mindMap = document.getElementById('mindMap');
+                    const connections = document.getElementById('connections');
+                    
+                    if (!mindMap || !connections) return;
+                    
+                    this.nodes.forEach(node => {
+                        const nodeElement = mindMap.querySelector(`[data-node-id="${node.id}"]`);
+                        if (nodeElement) {
+                            node.actualWidth = nodeElement.offsetWidth || 100;
+                            node.actualHeight = nodeElement.offsetHeight || 35;
+                        } else {
+                            node.actualWidth = 100;
+                            node.actualHeight = 35;
+                        }
+                    });
+                    
+                    this.calculateLayout();
+                    
+                    this.nodes.forEach(node => {
+                        const nodeElement = mindMap.querySelector(`[data-node-id="${node.id}"]`);
+                        if (nodeElement) {
+                            nodeElement.style.left = `${node.x}px`;
+                            nodeElement.style.top = `${node.y}px`;
+                        }
+                    });
+                    
+                    let maxX = 0;
+                    let maxY = 0;
+                    this.nodes.forEach(node => {
+                        maxX = Math.max(maxX, node.x + (node.actualWidth || 150) + 100);
+                        maxY = Math.max(maxY, node.y + (node.actualHeight || 35) + 50);
+                    });
+                    
+                    const containerWidth = Math.max(maxX, window.innerWidth - 40);
+                    const containerHeight = Math.max(maxY, window.innerHeight - 80);
+                    
+                    mindMap.style.width = `${containerWidth}px`;
+                    mindMap.style.height = `${containerHeight}px`;
+                    connections.setAttribute('width', containerWidth);
+                    connections.setAttribute('height', containerHeight);
+                    connections.style.width = `${containerWidth}px`;
+                    connections.style.height = `${containerHeight}px`;
+                    
+                    this.renderAllConnections();
+                    
+                    console.log('reLayout completed');
+                } catch (error) {
+                    console.error('Error in reLayout:', error);
+                }
+            }
+            
             createNodeElement(node) {
                 try {
                     console.log('createNodeElement called for:', node);
@@ -2281,6 +2334,13 @@
                             e.preventDefault();
                             this.editingNodeId = null;
                             e.target.blur();
+                        }
+                    });
+                    
+                    content.addEventListener('input', (e) => {
+                        if (this.editingNodeId === node.id) {
+                            node.text = e.target.textContent.trim();
+                            this.reLayout();
                         }
                     });
                     
