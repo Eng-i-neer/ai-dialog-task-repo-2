@@ -2106,13 +2106,18 @@
             
             calculateRightLayout() {
                 const centerNodes = this.nodes.filter(n => n.isCenter);
-                const nodeHeight = 35;
+                const defaultNodeHeight = 35;
                 const levelGap = 40;
                 const verticalGap = 20;
                 
+                const getNodeHeight = (nodeId) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    return node ? (node.actualHeight || defaultNodeHeight) : defaultNodeHeight;
+                };
+                
                 const getSubtreeHeight = (nodeId) => {
                     const node = this.nodes.find(n => n.id === nodeId);
-                    if (!node || node.children.length === 0) return nodeHeight;
+                    if (!node || node.children.length === 0) return getNodeHeight(nodeId);
                     
                     let totalHeight = 0;
                     node.children.forEach(childId => {
@@ -2120,7 +2125,7 @@
                     });
                     totalHeight -= verticalGap;
                     
-                    return Math.max(nodeHeight, totalHeight);
+                    return Math.max(getNodeHeight(nodeId), totalHeight);
                 };
                 
                 const getLevelMaxWidth = (nodeId, level, levelWidths) => {
@@ -2162,11 +2167,13 @@
                     const node = this.nodes.find(n => n.id === nodeId);
                     if (!node) return { y: startY, height: 0 };
                     
+                    const currentNodeHeight = getNodeHeight(nodeId);
+                    
                     node.x = xPositions[level] || (100 + level * (100 + levelGap));
                     
                     if (node.children.length === 0) {
                         node.y = startY;
-                        return { y: startY + nodeHeight, height: nodeHeight };
+                        return { y: startY + currentNodeHeight, height: currentNodeHeight };
                     } else {
                         const childHeights = [];
                         let childY = startY;
@@ -2186,17 +2193,20 @@
                         const lastChildStartY = childHeights[childHeights.length - 1].startY;
                         const lastChildEndY = childHeights[childHeights.length - 1].endY;
                         
-                        const firstChildCenterY = firstChildStartY + nodeHeight / 2;
-                        const lastChildCenterY = lastChildStartY + nodeHeight / 2;
+                        const firstChildHeight = getNodeHeight(childHeights[0].childId);
+                        const lastChildHeight = getNodeHeight(childHeights[childHeights.length - 1].childId);
+                        
+                        const firstChildCenterY = firstChildStartY + firstChildHeight / 2;
+                        const lastChildCenterY = lastChildStartY + lastChildHeight / 2;
                         
                         const childrenCenterY = (firstChildCenterY + lastChildCenterY) / 2;
-                        node.y = childrenCenterY - nodeHeight / 2;
+                        node.y = childrenCenterY - currentNodeHeight / 2;
                         
                         const childrenTotalHeight = lastChildEndY - firstChildStartY;
                         
                         return { 
                             y: lastChildEndY, 
-                            height: Math.max(nodeHeight, childrenTotalHeight)
+                            height: Math.max(currentNodeHeight, childrenTotalHeight)
                         };
                     }
                 };
