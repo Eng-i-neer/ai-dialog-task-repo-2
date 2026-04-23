@@ -18,6 +18,175 @@
             overflow: auto;
         }
         
+        .project-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #fafafa;
+            display: flex;
+            flex-direction: column;
+            z-index: 2000;
+        }
+        
+        .project-page.hidden {
+            display: none;
+        }
+        
+        .project-page-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e8e8e8;
+        }
+        
+        .project-page-header h1 {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .project-page-header button {
+            padding: 10px 20px;
+            font-size: 14px;
+            border: 1px solid #1890ff;
+            border-radius: 6px;
+            background-color: #1890ff;
+            color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        .project-page-header button:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+        }
+        
+        .project-list {
+            flex: 1;
+            padding: 30px 40px;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 20px;
+            align-content: start;
+        }
+        
+        .project-item {
+            background-color: #ffffff;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 20px;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .project-item:hover {
+            border-color: #1890ff;
+            box-shadow: 0 2px 8px rgba(24, 144, 255, 0.15);
+        }
+        
+        .project-item-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+            word-break: break-word;
+        }
+        
+        .project-item-time {
+            font-size: 12px;
+            color: #999;
+            margin-bottom: 8px;
+        }
+        
+        .project-item-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: auto;
+        }
+        
+        .project-item-actions button {
+            padding: 6px 12px;
+            font-size: 13px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .project-item-actions button:hover {
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+        
+        .project-item-actions button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .project-item-actions button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+        }
+        
+        .project-item-actions button.danger {
+            border-color: #ff4d4f;
+            color: #ff4d4f;
+        }
+        
+        .project-item-actions button.danger:hover {
+            background-color: #fff2f0;
+        }
+        
+        .project-empty {
+            grid-column: 1 / -1;
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .project-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+        }
+        
+        .project-empty-title {
+            font-size: 16px;
+            margin-bottom: 8px;
+            color: #666;
+        }
+        
+        .project-empty-desc {
+            font-size: 14px;
+            color: #999;
+        }
+        
+        .editor-page {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ffffff;
+            display: none;
+            flex-direction: column;
+        }
+        
+        .editor-page.show {
+            display: flex;
+        }
+        
         .toolbar {
             position: fixed;
             top: 0;
@@ -860,76 +1029,73 @@
     </style>
 </head>
 <body>
-    <div class="toolbar">
-        <div class="current-mindmap-info">
-            <span>当前：</span>
-            <span class="name" id="currentMindmapName">新思维导图</span>
+    <div class="project-page" id="projectPage">
+        <div class="project-page-header">
+            <h1>我的思维导图</h1>
+            <button id="newMindmapFromProjectsBtn" class="primary">
+                <span>+</span> 新建思维导图
+            </button>
         </div>
-        <div class="connection-status" id="connectionStatus">
-            <span class="status-dot disconnected" id="statusDot"></span>
-            <span id="statusText">后端未连接</span>
-            <button id="reconnectBtn" style="margin-left: 5px; padding: 2px 8px; font-size: 12px;">重试</button>
-        </div>
-        <div class="toolbar-separator"></div>
-        <button id="addCenterNode" class="primary">添加中心节点</button>
-        <button id="newMindmapBtn">新建</button>
-        <button id="saveMindmapBtn">保存</button>
-        <button id="loadMindmapBtn">加载</button>
-        <button id="deleteMindmapBtn" class="danger" style="display: none;">删除</button>
-        <div class="toolbar-separator"></div>
-        <div class="layout-selector">
-            <label for="layoutSelect">布局：</label>
-            <select id="layoutSelect">
-                <option value="right">右向布局</option>
-                <option value="tree">树状图布局</option>
-            </select>
-        </div>
-        <div class="connection-style-selector">
-            <label for="connectionStyleSelect">连线：</label>
-            <select id="connectionStyleSelect">
-                <option value="curve">曲线</option>
-                <option value="right-angle">直角</option>
-                <option value="straight">直线</option>
-            </select>
-        </div>
-        <div class="font-selector">
-            <label for="fontSelect">字体：</label>
-            <select id="fontSelect">
-                <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">默认</option>
-                <option value="'Microsoft YaHei', '微软雅黑', sans-serif">微软雅黑</option>
-                <option value="'SimSun', '宋体', serif">宋体</option>
-                <option value="'KaiTi', '楷体', serif">楷体</option>
-                <option value="'SimHei', '黑体', sans-serif">黑体</option>
-                <option value="'Arial', sans-serif">Arial</option>
-                <option value="'Times New Roman', serif">Times New Roman</option>
-                <option value="'Courier New', monospace">Courier New</option>
-                <option value="'Georgia', serif">Georgia</option>
-                <option value="'Verdana', sans-serif">Verdana</option>
-            </select>
+        <div class="project-list" id="projectList">
         </div>
     </div>
     
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
-            <h3>文件管理</h3>
-            <button class="sidebar-close" id="sidebarClose">×</button>
+    <div class="editor-page" id="editorPage">
+        <div class="toolbar">
+            <button id="backToProjectsBtn" style="margin-right: 10px;">← 返回</button>
+            <div class="current-mindmap-info">
+                <span>当前：</span>
+                <span class="name" id="currentMindmapName">新思维导图</span>
+            </div>
+            <div class="connection-status" id="connectionStatus">
+                <span class="status-dot disconnected" id="statusDot"></span>
+                <span id="statusText">后端未连接</span>
+                <button id="reconnectBtn" style="margin-left: 5px; padding: 2px 8px; font-size: 12px;">重试</button>
+            </div>
+            <div class="toolbar-separator"></div>
+            <button id="addCenterNode" class="primary">添加中心节点</button>
+            <button id="newMindmapBtn">新建</button>
+            <button id="saveMindmapBtn">保存</button>
+            <button id="loadMindmapBtn">加载</button>
+            <button id="deleteMindmapBtn" class="danger" style="display: none;">删除</button>
+            <div class="toolbar-separator"></div>
+            <div class="layout-selector">
+                <label for="layoutSelect">布局：</label>
+                <select id="layoutSelect">
+                    <option value="right">右向布局</option>
+                    <option value="tree">树状图布局</option>
+                </select>
+            </div>
+            <div class="connection-style-selector">
+                <label for="connectionStyleSelect">连线：</label>
+                <select id="connectionStyleSelect">
+                    <option value="curve">曲线</option>
+                    <option value="right-angle">直角</option>
+                    <option value="straight">直线</option>
+                </select>
+            </div>
+            <div class="font-selector">
+                <label for="fontSelect">字体：</label>
+                <select id="fontSelect">
+                    <option value="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif">默认</option>
+                    <option value="'Microsoft YaHei', '微软雅黑', sans-serif">微软雅黑</option>
+                    <option value="'SimSun', '宋体', serif">宋体</option>
+                    <option value="'KaiTi', '楷体', serif">楷体</option>
+                    <option value="'SimHei', '黑体', sans-serif">黑体</option>
+                    <option value="'Arial', sans-serif">Arial</option>
+                    <option value="'Times New Roman', serif">Times New Roman</option>
+                    <option value="'Courier New', monospace">Courier New</option>
+                    <option value="'Georgia', serif">Georgia</option>
+                    <option value="'Verdana', sans-serif">Verdana</option>
+                </select>
+            </div>
         </div>
-        <div class="sidebar-toolbar">
-            <button id="newMindmapFromSidebarBtn" class="primary">
-                <span>+</span> 新建
-            </button>
-            <button id="refreshMindmapListBtn">
-                <span>↻</span> 刷新
-            </button>
-        </div>
-        <div class="mindmap-list" id="mindmapList">
-        </div>
-    </div>
-    
-    <div class="main-content" id="mainContent">
-        <div class="mind-map-container">
-            <div class="mind-map" id="mindMap">
-                <svg class="connections" id="connections"></svg>
+        
+        <div class="main-content" id="mainContent">
+            <div class="mind-map-container">
+                <div class="mind-map" id="mindMap">
+                    <svg class="connections" id="connections"></svg>
+                </div>
             </div>
         </div>
     </div>
@@ -1009,9 +1175,7 @@
                         await this.loadMindmapsList();
                     }
                     
-                    this.showSidebar();
-                    const mainContent = document.getElementById('mainContent');
-                    if (mainContent) mainContent.classList.remove('show');
+                    this.showProjectPage();
                     
                     this.render();
                     console.log('MindMap initialized successfully');
@@ -1019,6 +1183,22 @@
                     console.error('Error during initialization:', error);
                     this.render();
                 }
+            }
+            
+            showProjectPage() {
+                const projectPage = document.getElementById('projectPage');
+                const editorPage = document.getElementById('editorPage');
+                
+                if (projectPage) projectPage.classList.remove('hidden');
+                if (editorPage) editorPage.classList.remove('show');
+            }
+            
+            showEditorPage() {
+                const projectPage = document.getElementById('projectPage');
+                const editorPage = document.getElementById('editorPage');
+                
+                if (projectPage) projectPage.classList.add('hidden');
+                if (editorPage) editorPage.classList.add('show');
             }
             
             bindEventListeners() {
@@ -1199,6 +1379,16 @@
                     this.confirmAction();
                 });
                 
+                document.getElementById('backToProjectsBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.showProjectPage();
+                });
+                
+                document.getElementById('newMindmapFromProjectsBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.createNewMindmapFromProjects();
+                });
+                
                 console.log('Event listeners bound successfully');
             }
             
@@ -1311,35 +1501,31 @@
             
             renderMindmapList() {
                 try {
-                    const listContainer = document.getElementById('mindmapList');
+                    const listContainer = document.getElementById('projectList');
                     if (!listContainer) return;
                     
                     listContainer.innerHTML = '';
                     
                     if (!this.backendConnected) {
-                        listContainer.innerHTML = '<div class="sidebar-empty"><div class="sidebar-empty-icon">🔌</div><div>后端未连接</div><div style="font-size: 12px; margin-top: 8px;">请检查后端服务是否启动</div></div>';
+                        listContainer.innerHTML = '<div class="project-empty"><div class="project-empty-icon">🔌</div><div class="project-empty-title">后端未连接</div><div class="project-empty-desc">请检查后端服务是否启动</div></div>';
                         return;
                     }
                     
                     if (this.mindmaps.length === 0) {
-                        listContainer.innerHTML = '<div class="sidebar-empty"><div class="sidebar-empty-icon">📁</div><div>暂无保存的思维导图</div><div style="font-size: 12px; margin-top: 8px;">点击上方"新建"按钮创建</div></div>';
+                        listContainer.innerHTML = '<div class="project-empty"><div class="project-empty-icon">📁</div><div class="project-empty-title">暂无保存的思维导图</div><div class="project-empty-desc">点击上方"新建思维导图"按钮创建</div></div>';
                         return;
                     }
                     
                     this.mindmaps.forEach(mindmap => {
                         const item = document.createElement('div');
-                        item.className = `mindmap-item ${mindmap.id === this.currentMindmapId ? 'active' : ''}`;
+                        item.className = `project-item`;
                         item.innerHTML = `
-                            <div class="mindmap-item-header">
-                                <div class="mindmap-item-name" title="${this.escapeHtml(mindmap.name)}">${this.escapeHtml(mindmap.name)}</div>
-                            </div>
-                            <div class="mindmap-item-meta">
-                                <div class="mindmap-item-time">更新于 ${mindmap.updated_at}</div>
-                                <div class="mindmap-item-actions">
-                                    <button class="open-btn" data-id="${mindmap.id}" title="打开">打开</button>
-                                    <button class="rename-btn" data-id="${mindmap.id}" title="重命名">重命名</button>
-                                    <button class="delete-btn" data-id="${mindmap.id}" title="删除">删除</button>
-                                </div>
+                            <div class="project-item-name" title="${this.escapeHtml(mindmap.name)}">${this.escapeHtml(mindmap.name)}</div>
+                            <div class="project-item-time">更新于 ${mindmap.updated_at}</div>
+                            <div class="project-item-actions">
+                                <button class="open-btn primary" data-id="${mindmap.id}" title="打开">打开</button>
+                                <button class="rename-btn" data-id="${mindmap.id}" title="重命名">重命名</button>
+                                <button class="delete-btn danger" data-id="${mindmap.id}" title="删除">删除</button>
                             </div>
                         `;
                         
@@ -1514,9 +1700,7 @@
                     this.updateCurrentMindmapInfo();
                     this.render();
                     
-                    this.hideSidebar();
-                    const mainContent = document.getElementById('mainContent');
-                    if (mainContent) mainContent.classList.add('show');
+                    this.showEditorPage();
                     
                     this.showNotification('已创建新思维导图', 'info');
                     
@@ -1620,9 +1804,7 @@
                         
                         this.updateCurrentMindmapInfo();
                         this.render();
-                        this.hideSidebar();
-                        const mainContent = document.getElementById('mainContent');
-                        if (mainContent) mainContent.classList.add('show');
+                        this.showEditorPage();
                         this.showNotification(`已加载：${mindmap.name}`, 'success');
                     } else {
                         this.showNotification('加载失败', 'error');
@@ -1695,6 +1877,16 @@
             }
             
             createNewMindmapFromSidebar() {
+                try {
+                    this.newMindmap();
+                    this.showNotification('已创建新思维导图，请添加节点后保存', 'info');
+                } catch (error) {
+                    console.error('Error creating new mindmap:', error);
+                    this.showNotification('创建新思维导图失败', 'error');
+                }
+            }
+            
+            createNewMindmapFromProjects() {
                 try {
                     this.newMindmap();
                     this.showNotification('已创建新思维导图，请添加节点后保存', 'info');
