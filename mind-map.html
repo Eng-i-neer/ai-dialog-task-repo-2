@@ -234,30 +234,33 @@
             position: fixed;
             top: 50px;
             left: 0;
-            width: 250px;
+            width: 320px;
             height: calc(100vh - 50px);
-            background-color: #fafafa;
+            background-color: #ffffff;
             border-right: 1px solid #e0e0e0;
             z-index: 999;
-            overflow-y: auto;
             display: none;
+            flex-direction: column;
+            box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
         }
         
         .sidebar.show {
-            display: block;
+            display: flex;
         }
         
         .sidebar-header {
-            padding: 15px;
+            padding: 12px 15px;
             border-bottom: 1px solid #e0e0e0;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background-color: #fafafa;
         }
         
         .sidebar-header h3 {
             font-size: 16px;
             font-weight: 600;
+            color: #333;
         }
         
         .sidebar-close {
@@ -265,63 +268,170 @@
             border: none;
             font-size: 20px;
             cursor: pointer;
-            color: #666;
+            color: #999;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.2s;
         }
         
         .sidebar-close:hover {
             color: #333;
+            background-color: #e8e8e8;
+        }
+        
+        .sidebar-toolbar {
+            padding: 10px 15px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            gap: 10px;
+        }
+        
+        .sidebar-toolbar button {
+            padding: 6px 12px;
+            font-size: 13px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .sidebar-toolbar button:hover {
+            border-color: #40a9ff;
+            color: #1890ff;
+        }
+        
+        .sidebar-toolbar button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .sidebar-toolbar button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+            color: #ffffff;
         }
         
         .mindmap-list {
-            padding: 10px;
+            flex: 1;
+            overflow-y: auto;
+            padding: 8px;
         }
         
         .mindmap-item {
-            padding: 10px;
-            border-bottom: 1px solid #e0e0e0;
+            padding: 12px 15px;
+            border: 1px solid transparent;
             cursor: pointer;
-            border-radius: 4px;
-            margin-bottom: 5px;
-            transition: background-color 0.2s;
+            border-radius: 6px;
+            margin-bottom: 4px;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
         }
         
         .mindmap-item:hover {
-            background-color: #f0f0f0;
+            background-color: #f5f5f5;
+            border-color: #e8e8e8;
         }
         
         .mindmap-item.active {
             background-color: #e6f7ff;
-            border-color: #1890ff;
+            border-color: #91d5ff;
+        }
+        
+        .mindmap-item.selected {
+            background-color: #bae7ff;
+            border-color: #40a9ff;
+        }
+        
+        .mindmap-item-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
         }
         
         .mindmap-item-name {
             font-weight: 500;
-            margin-bottom: 5px;
+            font-size: 14px;
+            color: #333;
             word-break: break-all;
+            flex: 1;
+        }
+        
+        .mindmap-item-name.editable {
+            cursor: text;
+            padding: 2px 4px;
+            border-radius: 2px;
+            min-width: 50px;
+        }
+        
+        .mindmap-item-name.editable:hover {
+            background-color: #e6f7ff;
+        }
+        
+        .mindmap-item-name-input {
+            width: 100%;
+            padding: 2px 4px;
+            font-size: 14px;
+            font-weight: 500;
+            border: 1px solid #40a9ff;
+            border-radius: 2px;
+            outline: none;
+        }
+        
+        .mindmap-item-meta {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
         }
         
         .mindmap-item-time {
             font-size: 12px;
-            color: #666;
+            color: #999;
         }
         
         .mindmap-item-actions {
             display: flex;
-            gap: 5px;
-            margin-top: 8px;
+            gap: 8px;
         }
         
         .mindmap-item-actions button {
             padding: 4px 8px;
             font-size: 12px;
-            border: 1px solid #cccccc;
-            border-radius: 3px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
             background-color: #ffffff;
             cursor: pointer;
+            transition: all 0.2s;
         }
         
         .mindmap-item-actions button:hover {
-            background-color: #e8e8e8;
+            border-color: #40a9ff;
+            color: #1890ff;
+            background-color: #e6f7ff;
+        }
+        
+        .mindmap-item-actions button.open-btn {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .mindmap-item-actions button.open-btn:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+            color: #ffffff;
         }
         
         .mindmap-item-actions button.delete-btn {
@@ -331,6 +441,198 @@
         
         .mindmap-item-actions button.delete-btn:hover {
             background-color: #fff2f0;
+            border-color: #ff4d4f;
+            color: #ff4d4f;
+        }
+        
+        .mindmap-item-actions button.rename-btn {
+            color: #1890ff;
+            border-color: #1890ff;
+        }
+        
+        .mindmap-item-actions button.rename-btn:hover {
+            background-color: #e6f7ff;
+            border-color: #1890ff;
+            color: #1890ff;
+        }
+        
+        .sidebar-empty {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: #999;
+            font-size: 14px;
+        }
+        
+        .sidebar-empty-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+        
+        .confirm-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 3000;
+            padding: 24px;
+            min-width: 320px;
+            display: none;
+        }
+        
+        .confirm-dialog.show {
+            display: block;
+        }
+        
+        .confirm-dialog-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        
+        .confirm-dialog-content {
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 20px;
+            line-height: 1.6;
+        }
+        
+        .confirm-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        
+        .confirm-dialog-actions button {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .confirm-dialog-actions button:hover {
+            border-color: #40a9ff;
+            color: #1890ff;
+        }
+        
+        .confirm-dialog-actions button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .confirm-dialog-actions button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+            color: #ffffff;
+        }
+        
+        .confirm-dialog-actions button.danger {
+            background-color: #ff4d4f;
+            border-color: #ff4d4f;
+            color: #ffffff;
+        }
+        
+        .confirm-dialog-actions button.danger:hover {
+            background-color: #ff7875;
+            border-color: #ff7875;
+            color: #ffffff;
+        }
+        
+        .rename-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: #ffffff;
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            z-index: 3000;
+            padding: 24px;
+            min-width: 320px;
+            display: none;
+        }
+        
+        .rename-dialog.show {
+            display: block;
+        }
+        
+        .rename-dialog-header {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: #333;
+        }
+        
+        .rename-dialog-content {
+            margin-bottom: 20px;
+        }
+        
+        .rename-dialog-content label {
+            display: block;
+            font-size: 14px;
+            color: #666;
+            margin-bottom: 8px;
+        }
+        
+        .rename-dialog-content input {
+            width: 100%;
+            padding: 8px 12px;
+            font-size: 14px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            outline: none;
+            transition: all 0.2s;
+        }
+        
+        .rename-dialog-content input:focus {
+            border-color: #40a9ff;
+            box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+        }
+        
+        .rename-dialog-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 12px;
+        }
+        
+        .rename-dialog-actions button {
+            padding: 8px 16px;
+            font-size: 14px;
+            border: 1px solid #d9d9d9;
+            border-radius: 4px;
+            background-color: #ffffff;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .rename-dialog-actions button:hover {
+            border-color: #40a9ff;
+            color: #1890ff;
+        }
+        
+        .rename-dialog-actions button.primary {
+            background-color: #1890ff;
+            border-color: #1890ff;
+            color: #ffffff;
+        }
+        
+        .rename-dialog-actions button.primary:hover {
+            background-color: #40a9ff;
+            border-color: #40a9ff;
+            color: #ffffff;
         }
         
         .main-content {
@@ -583,8 +885,16 @@
     
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
-            <h3>思维导图列表</h3>
+            <h3>文件管理</h3>
             <button class="sidebar-close" id="sidebarClose">×</button>
+        </div>
+        <div class="sidebar-toolbar">
+            <button id="newMindmapFromSidebarBtn" class="primary">
+                <span>+</span> 新建
+            </button>
+            <button id="refreshMindmapListBtn">
+                <span>↻</span> 刷新
+            </button>
         </div>
         <div class="mindmap-list" id="mindmapList">
         </div>
@@ -615,6 +925,27 @@
         </div>
     </div>
     
+    <div class="rename-dialog" id="renameDialog">
+        <div class="rename-dialog-header">重命名</div>
+        <div class="rename-dialog-content">
+            <label for="renameInput">新名称：</label>
+            <input type="text" id="renameInput" placeholder="请输入新名称">
+        </div>
+        <div class="rename-dialog-actions">
+            <button id="cancelRenameBtn">取消</button>
+            <button id="confirmRenameBtn" class="primary">确认</button>
+        </div>
+    </div>
+    
+    <div class="confirm-dialog" id="confirmDialog">
+        <div class="confirm-dialog-header" id="confirmDialogTitle">确认</div>
+        <div class="confirm-dialog-content" id="confirmDialogContent">确定要执行此操作吗？</div>
+        <div class="confirm-dialog-actions">
+            <button id="cancelConfirmBtn">取消</button>
+            <button id="confirmConfirmBtn" class="primary">确认</button>
+        </div>
+    </div>
+    
     <div class="overlay" id="overlay"></div>
     
     <div class="notification" id="notification"></div>
@@ -636,6 +967,10 @@
                 this.currentMindmapName = '新思维导图';
                 this.mindmaps = [];
                 this.backendConnected = false;
+                
+                this.renamingMindmapId = null;
+                this.renamingMindmapName = '';
+                this.confirmCallback = null;
                 
                 this.init();
             }
@@ -773,6 +1108,43 @@
                     }
                 });
                 
+                document.getElementById('newMindmapFromSidebarBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.createNewMindmapFromSidebar();
+                });
+                
+                document.getElementById('refreshMindmapListBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.refreshMindmapList();
+                });
+                
+                document.getElementById('cancelRenameBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideRenameDialog();
+                });
+                
+                document.getElementById('confirmRenameBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.confirmRename();
+                });
+                
+                document.getElementById('renameInput').addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.stopPropagation();
+                        this.confirmRename();
+                    }
+                });
+                
+                document.getElementById('cancelConfirmBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.hideConfirmDialog();
+                });
+                
+                document.getElementById('confirmConfirmBtn').addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this.confirmAction();
+                });
+                
                 console.log('Event listeners bound successfully');
             }
             
@@ -891,12 +1263,12 @@
                     listContainer.innerHTML = '';
                     
                     if (!this.backendConnected) {
-                        listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">后端未连接，无法加载保存的思维导图</div>';
+                        listContainer.innerHTML = '<div class="sidebar-empty"><div class="sidebar-empty-icon">🔌</div><div>后端未连接</div><div style="font-size: 12px; margin-top: 8px;">请检查后端服务是否启动</div></div>';
                         return;
                     }
                     
                     if (this.mindmaps.length === 0) {
-                        listContainer.innerHTML = '<div style="padding: 20px; text-align: center; color: #999;">暂无保存的思维导图</div>';
+                        listContainer.innerHTML = '<div class="sidebar-empty"><div class="sidebar-empty-icon">📁</div><div>暂无保存的思维导图</div><div style="font-size: 12px; margin-top: 8px;">点击上方"新建"按钮创建</div></div>';
                         return;
                     }
                     
@@ -904,22 +1276,37 @@
                         const item = document.createElement('div');
                         item.className = `mindmap-item ${mindmap.id === this.currentMindmapId ? 'active' : ''}`;
                         item.innerHTML = `
-                            <div class="mindmap-item-name">${this.escapeHtml(mindmap.name)}</div>
-                            <div class="mindmap-item-time">更新于 ${mindmap.updated_at}</div>
-                            <div class="mindmap-item-actions">
-                                <button class="load-btn" data-id="${mindmap.id}">加载</button>
-                                <button class="delete-btn" data-id="${mindmap.id}">删除</button>
+                            <div class="mindmap-item-header">
+                                <div class="mindmap-item-name" title="${this.escapeHtml(mindmap.name)}">${this.escapeHtml(mindmap.name)}</div>
+                            </div>
+                            <div class="mindmap-item-meta">
+                                <div class="mindmap-item-time">更新于 ${mindmap.updated_at}</div>
+                                <div class="mindmap-item-actions">
+                                    <button class="open-btn" data-id="${mindmap.id}" title="打开">打开</button>
+                                    <button class="rename-btn" data-id="${mindmap.id}" title="重命名">重命名</button>
+                                    <button class="delete-btn" data-id="${mindmap.id}" title="删除">删除</button>
+                                </div>
                             </div>
                         `;
                         
-                        item.querySelector('.load-btn').addEventListener('click', (e) => {
+                        item.addEventListener('dblclick', (e) => {
                             e.stopPropagation();
                             this.loadMindmap(mindmap.id);
                         });
                         
+                        item.querySelector('.open-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.loadMindmap(mindmap.id);
+                        });
+                        
+                        item.querySelector('.rename-btn').addEventListener('click', (e) => {
+                            e.stopPropagation();
+                            this.showRenameDialog(mindmap.id, mindmap.name);
+                        });
+                        
                         item.querySelector('.delete-btn').addEventListener('click', (e) => {
                             e.stopPropagation();
-                            this.deleteMindmapFromList(mindmap.id);
+                            this.showDeleteConfirm(mindmap.id, mindmap.name);
                         });
                         
                         listContainer.appendChild(item);
@@ -1181,6 +1568,205 @@
                     console.error('Failed to delete mindmap:', error);
                     this.showNotification('删除失败：无法连接到服务器', 'error');
                 }
+            }
+            
+            createNewMindmapFromSidebar() {
+                try {
+                    this.newMindmap();
+                    this.showNotification('已创建新思维导图，请添加节点后保存', 'info');
+                } catch (error) {
+                    console.error('Error creating new mindmap:', error);
+                    this.showNotification('创建新思维导图失败', 'error');
+                }
+            }
+            
+            async refreshMindmapList() {
+                try {
+                    if (this.backendConnected) {
+                        await this.loadMindmapsList();
+                        this.showNotification('已刷新', 'success');
+                    } else {
+                        this.showNotification('后端未连接，无法刷新', 'error');
+                    }
+                } catch (error) {
+                    console.error('Error refreshing mindmap list:', error);
+                    this.showNotification('刷新失败', 'error');
+                }
+            }
+            
+            showRenameDialog(id, name) {
+                try {
+                    this.renamingMindmapId = id;
+                    this.renamingMindmapName = name;
+                    
+                    const dialog = document.getElementById('renameDialog');
+                    const input = document.getElementById('renameInput');
+                    
+                    if (input) {
+                        input.value = name;
+                    }
+                    
+                    if (dialog) {
+                        dialog.classList.add('show');
+                    }
+                    
+                    if (input) {
+                        input.focus();
+                        input.select();
+                    }
+                } catch (error) {
+                    console.error('Error showing rename dialog:', error);
+                }
+            }
+            
+            hideRenameDialog() {
+                try {
+                    const dialog = document.getElementById('renameDialog');
+                    if (dialog) {
+                        dialog.classList.remove('show');
+                    }
+                    this.renamingMindmapId = null;
+                    this.renamingMindmapName = '';
+                } catch (error) {
+                    console.error('Error hiding rename dialog:', error);
+                }
+            }
+            
+            async confirmRename() {
+                if (!this.renamingMindmapId) {
+                    return;
+                }
+                
+                const input = document.getElementById('renameInput');
+                const newName = input ? (input.value.trim() || '未命名思维导图') : '未命名思维导图';
+                
+                if (newName === this.renamingMindmapName) {
+                    this.hideRenameDialog();
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps/${this.renamingMindmapId}`, {
+                        method: 'PUT',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            name: newName
+                        })
+                    });
+                    
+                    if (response.ok) {
+                        if (this.currentMindmapId === this.renamingMindmapId) {
+                            this.currentMindmapName = newName;
+                            this.updateCurrentMindmapInfo();
+                        }
+                        
+                        await this.loadMindmapsList();
+                        this.hideRenameDialog();
+                        this.showNotification('重命名成功', 'success');
+                    } else {
+                        this.showNotification('重命名失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to rename mindmap:', error);
+                    this.showNotification('重命名失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            showDeleteConfirm(id, name) {
+                const dialog = document.getElementById('confirmDialog');
+                const title = document.getElementById('confirmDialogTitle');
+                const content = document.getElementById('confirmDialogContent');
+                const confirmBtn = document.getElementById('confirmConfirmBtn');
+                
+                if (title) {
+                    title.textContent = '确认删除';
+                }
+                if (content) {
+                    content.innerHTML = `确定要删除思维导图 "<strong>${this.escapeHtml(name)}</strong>" 吗？<br><span style="color: #ff4d4f; font-size: 12px;">此操作不可撤销</span>`;
+                }
+                if (confirmBtn) {
+                    confirmBtn.className = 'danger';
+                    confirmBtn.textContent = '删除';
+                }
+                
+                this.confirmCallback = async () => {
+                    await this.deleteMindmapById(id);
+                };
+                
+                if (dialog) {
+                    dialog.classList.add('show');
+                }
+            }
+            
+            async deleteMindmapById(id) {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法删除', 'error');
+                    return;
+                }
+                
+                try {
+                    const response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps/${id}`, {
+                        method: 'DELETE'
+                    });
+                    
+                    if (response.ok) {
+                        if (this.currentMindmapId === id) {
+                            this.newMindmap();
+                        }
+                        await this.loadMindmapsList();
+                        this.showNotification('删除成功', 'success');
+                    } else {
+                        this.showNotification('删除失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to delete mindmap:', error);
+                    this.showNotification('删除失败：无法连接到服务器', 'error');
+                }
+            }
+            
+            showConfirmDialog(title, content, isDanger, callback) {
+                const dialog = document.getElementById('confirmDialog');
+                const titleEl = document.getElementById('confirmDialogTitle');
+                const contentEl = document.getElementById('confirmDialogContent');
+                const confirmBtn = document.getElementById('confirmConfirmBtn');
+                
+                if (titleEl) {
+                    titleEl.textContent = title;
+                }
+                if (contentEl) {
+                    contentEl.textContent = content;
+                }
+                if (confirmBtn) {
+                    confirmBtn.className = isDanger ? 'danger' : 'primary';
+                    confirmBtn.textContent = '确认';
+                }
+                
+                this.confirmCallback = callback;
+                
+                if (dialog) {
+                    dialog.classList.add('show');
+                }
+            }
+            
+            hideConfirmDialog() {
+                const dialog = document.getElementById('confirmDialog');
+                if (dialog) {
+                    dialog.classList.remove('show');
+                }
+                this.confirmCallback = null;
+            }
+            
+            async confirmAction() {
+                if (typeof this.confirmCallback === 'function') {
+                    try {
+                        await this.confirmCallback();
+                    } catch (error) {
+                        console.error('Error in confirm callback:', error);
+                    }
+                }
+                this.hideConfirmDialog();
             }
             
             addCenterNode() {
