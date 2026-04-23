@@ -1977,8 +1977,7 @@
             calculateRightLayout() {
                 const centerNodes = this.nodes.filter(n => n.isCenter);
                 const nodeHeight = 35;
-                const nodeWidth = 150;
-                const horizontalGap = 60;
+                const levelGap = 40;
                 const verticalGap = 20;
                 
                 const getSubtreeHeight = (nodeId) => {
@@ -1994,11 +1993,46 @@
                     return Math.max(nodeHeight, totalHeight);
                 };
                 
+                const getLevelMaxWidth = (nodeId, level, levelWidths) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    if (!node) return;
+                    
+                    const actualW = node.actualWidth || 100;
+                    if (!levelWidths[level] || actualW > levelWidths[level]) {
+                        levelWidths[level] = actualW;
+                    }
+                    
+                    node.children.forEach(childId => {
+                        getLevelMaxWidth(childId, level + 1, levelWidths);
+                    });
+                };
+                
+                const levelWidths = {};
+                centerNodes.forEach(centerNode => {
+                    getLevelMaxWidth(centerNode.id, 0, levelWidths);
+                });
+                
+                const calculateXPositions = () => {
+                    const xPositions = {};
+                    let currentX = 100;
+                    
+                    const maxLevel = Math.max(...Object.keys(levelWidths).map(Number));
+                    
+                    for (let level = 0; level <= maxLevel; level++) {
+                        xPositions[level] = currentX;
+                        currentX += (levelWidths[level] || 100) + levelGap;
+                    }
+                    
+                    return xPositions;
+                };
+                
+                const xPositions = calculateXPositions();
+                
                 const layoutBottomUp = (nodeId, level, startY) => {
                     const node = this.nodes.find(n => n.id === nodeId);
                     if (!node) return { y: startY, height: 0 };
                     
-                    node.x = 100 + level * (nodeWidth + horizontalGap);
+                    node.x = xPositions[level] || (100 + level * (100 + levelGap));
                     
                     if (node.children.length === 0) {
                         node.y = startY;
@@ -2117,19 +2151,47 @@
                         return;
                     }
                     
-                    this.calculateLayout();
-                    
                     const existingNodes = mindMap.querySelectorAll('.node');
                     console.log('Removing', existingNodes.length, 'existing nodes');
                     existingNodes.forEach(node => node.remove());
                     
                     connections.innerHTML = '';
                     
+                    this.nodes.forEach(node => {
+                        const nodeElement = this.createNodeElement(node);
+                        if (nodeElement) {
+                            nodeElement.style.visibility = 'hidden';
+                            mindMap.appendChild(nodeElement);
+                        }
+                    });
+                    
+                    this.nodes.forEach(node => {
+                        const nodeElement = mindMap.querySelector(`[data-node-id="${node.id}"]`);
+                        if (nodeElement) {
+                            node.actualWidth = nodeElement.offsetWidth || 100;
+                            node.actualHeight = nodeElement.offsetHeight || 35;
+                        } else {
+                            node.actualWidth = 100;
+                            node.actualHeight = 35;
+                        }
+                    });
+                    
+                    this.calculateLayout();
+                    
+                    this.nodes.forEach(node => {
+                        const nodeElement = mindMap.querySelector(`[data-node-id="${node.id}"]`);
+                        if (nodeElement) {
+                            nodeElement.style.left = `${node.x}px`;
+                            nodeElement.style.top = `${node.y}px`;
+                            nodeElement.style.visibility = 'visible';
+                        }
+                    });
+                    
                     let maxX = 0;
                     let maxY = 0;
                     this.nodes.forEach(node => {
-                        maxX = Math.max(maxX, node.x + 400);
-                        maxY = Math.max(maxY, node.y + 200);
+                        maxX = Math.max(maxX, node.x + (node.actualWidth || 150) + 100);
+                        maxY = Math.max(maxY, node.y + (node.actualHeight || 35) + 50);
                     });
                     
                     const containerWidth = Math.max(maxX, window.innerWidth - 40);
@@ -2141,16 +2203,6 @@
                     connections.setAttribute('height', containerHeight);
                     connections.style.width = `${containerWidth}px`;
                     connections.style.height = `${containerHeight}px`;
-                    
-                    console.log('Creating', this.nodes.length, 'nodes');
-                    this.nodes.forEach(node => {
-                        console.log('Creating node element for:', node);
-                        const nodeElement = this.createNodeElement(node);
-                        if (nodeElement) {
-                            mindMap.appendChild(nodeElement);
-                            console.log('Node element appended:', nodeElement);
-                        }
-                    });
                     
                     this.renderAllConnections();
                     
@@ -2325,8 +2377,8 @@
                     
                     connections.innerHTML = '';
                     
-                    const nodeWidth = 150;
                     const nodeHeight = 35;
+                    const lineGap = 5;
                     
                     const parentNodes = this.nodes.filter(n => n.children.length > 0);
                     
@@ -2337,18 +2389,19 @@
                         
                         if (childNodes.length === 0) return;
                         
-                        const parentCenterX = parent.x + nodeWidth;
+                        const parentActualWidth = parent.actualWidth || 100;
+                        const parentRightX = parent.x + parentActualWidth + lineGap;
                         const parentCenterY = parent.y + nodeHeight / 2;
                         
                         if (childNodes.length === 1) {
                             const child = childNodes[0];
-                            const childCenterX = child.x;
+                            const childLeftX = child.x - lineGap;
                             const childCenterY = child.y + nodeHeight / 2;
                             
                             this.drawSingleConnection(
                                 connections,
-                                parentCenterX, parentCenterY,
-                                childCenterX, childCenterY
+                                parentRightX, parentCenterY,
+                                childLeftX, childCenterY
                             );
                         } else {
                             childNodes.sort((a, b) => a.y - b.y);
@@ -2356,10 +2409,9 @@
                             const firstChildY = childNodes[0].y + nodeHeight / 2;
                             const lastChildY = childNodes[childNodes.length - 1].y + nodeHeight / 2;
                             
-                            const parentRightX = parent.x + nodeWidth;
-                            const childLeftX = childNodes[0].x;
+                            const firstChildLeftX = childNodes[0].x - lineGap;
                             
-                            const verticalLineX = parentRightX + (childLeftX - parentRightX) / 2;
+                            const verticalLineX = firstChildLeftX;
                             
                             this.drawLine(connections, parentRightX, parentCenterY, verticalLineX, parentCenterY);
                             
@@ -2367,7 +2419,7 @@
                             
                             childNodes.forEach(child => {
                                 const childCenterY = child.y + nodeHeight / 2;
-                                const childLeftX = child.x;
+                                const childLeftX = child.x - lineGap;
                                 
                                 this.drawLine(connections, verticalLineX, childCenterY, childLeftX, childCenterY);
                             });
