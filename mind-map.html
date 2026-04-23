@@ -1977,7 +1977,8 @@
             calculateRightLayout() {
                 const centerNodes = this.nodes.filter(n => n.isCenter);
                 const nodeHeight = 35;
-                const levelWidth = 250;
+                const nodeWidth = 150;
+                const horizontalGap = 60;
                 const verticalGap = 20;
                 
                 const getSubtreeHeight = (nodeId) => {
@@ -1993,42 +1994,49 @@
                     return Math.max(nodeHeight, totalHeight);
                 };
                 
-                let currentY = 50;
-                
-                const layoutRightSubtree = (nodeId, level, startY, allocatedHeight) => {
+                const layoutBottomUp = (nodeId, level, startY) => {
                     const node = this.nodes.find(n => n.id === nodeId);
-                    if (!node) return startY;
+                    if (!node) return { y: startY, height: 0 };
                     
-                    node.x = 100 + level * levelWidth;
+                    node.x = 100 + level * (nodeWidth + horizontalGap);
                     
                     if (node.children.length === 0) {
                         node.y = startY;
-                        return startY + nodeHeight;
+                        return { y: startY + nodeHeight, height: nodeHeight };
                     } else {
-                        let childrenTotalHeight = 0;
-                        node.children.forEach(childId => {
-                            childrenTotalHeight += getSubtreeHeight(childId) + verticalGap;
-                        });
-                        childrenTotalHeight -= verticalGap;
-                        
-                        const availableHeight = Math.max(nodeHeight, childrenTotalHeight);
-                        node.y = startY + (availableHeight - nodeHeight) / 2;
-                        
+                        const childHeights = [];
                         let childY = startY;
+                        
                         node.children.forEach(childId => {
-                            const childSubtreeHeight = getSubtreeHeight(childId);
-                            layoutRightSubtree(childId, level + 1, childY, childSubtreeHeight);
-                            childY += childSubtreeHeight + verticalGap;
+                            const result = layoutBottomUp(childId, level + 1, childY);
+                            childHeights.push({
+                                childId: childId,
+                                startY: childY,
+                                endY: result.y,
+                                height: result.height
+                            });
+                            childY = result.y + verticalGap;
                         });
                         
-                        return startY + availableHeight;
+                        const firstChildStartY = childHeights[0].startY;
+                        const lastChildEndY = childHeights[childHeights.length - 1].endY;
+                        const childrenTotalHeight = lastChildEndY - firstChildStartY;
+                        
+                        const parentCenterY = firstChildStartY + childrenTotalHeight / 2;
+                        node.y = parentCenterY - nodeHeight / 2;
+                        
+                        return { 
+                            y: lastChildEndY, 
+                            height: Math.max(nodeHeight, childrenTotalHeight)
+                        };
                     }
                 };
                 
+                let currentY = 50;
                 centerNodes.forEach(centerNode => {
                     const subtreeHeight = getSubtreeHeight(centerNode.id);
-                    layoutRightSubtree(centerNode.id, 0, currentY, subtreeHeight);
-                    currentY += subtreeHeight + 40;
+                    layoutBottomUp(centerNode.id, 0, currentY);
+                    currentY += subtreeHeight + 50;
                 });
             }
             
@@ -2139,11 +2147,7 @@
                         }
                     });
                     
-                    this.nodes.forEach(node => {
-                        if (node.parentId) {
-                            this.renderConnection(node.parentId, node.id);
-                        }
-                    });
+                    this.renderAllConnections();
                     
                     if (this.nodes.length === 0) {
                         const emptyMessage = document.createElement('div');
@@ -2307,6 +2311,83 @@
                 } catch (error) {
                     console.error('Error in renderConnection:', error);
                 }
+            }
+            
+            renderAllConnections() {
+                try {
+                    const connections = document.getElementById('connections');
+                    if (!connections) return;
+                    
+                    connections.innerHTML = '';
+                    
+                    const nodeWidth = 150;
+                    const nodeHeight = 35;
+                    
+                    const parentNodes = this.nodes.filter(n => n.children.length > 0);
+                    
+                    parentNodes.forEach(parent => {
+                        const childNodes = parent.children
+                            .map(childId => this.nodes.find(n => n.id === childId))
+                            .filter(n => n);
+                        
+                        if (childNodes.length === 0) return;
+                        
+                        const parentCenterX = parent.x + nodeWidth;
+                        const parentCenterY = parent.y + nodeHeight / 2;
+                        
+                        if (childNodes.length === 1) {
+                            const child = childNodes[0];
+                            const childCenterX = child.x;
+                            const childCenterY = child.y + nodeHeight / 2;
+                            
+                            this.drawSingleConnection(
+                                connections,
+                                parentCenterX, parentCenterY,
+                                childCenterX, childCenterY
+                            );
+                        } else {
+                            childNodes.sort((a, b) => a.y - b.y);
+                            
+                            const firstChildY = childNodes[0].y + nodeHeight / 2;
+                            const lastChildY = childNodes[childNodes.length - 1].y + nodeHeight / 2;
+                            
+                            const parentRightX = parent.x + nodeWidth;
+                            const childLeftX = childNodes[0].x;
+                            
+                            const verticalLineX = parentRightX + (childLeftX - parentRightX) / 2;
+                            
+                            this.drawLine(connections, parentRightX, parentCenterY, verticalLineX, parentCenterY);
+                            
+                            this.drawLine(connections, verticalLineX, firstChildY, verticalLineX, lastChildY);
+                            
+                            childNodes.forEach(child => {
+                                const childCenterY = child.y + nodeHeight / 2;
+                                const childLeftX = child.x;
+                                
+                                this.drawLine(connections, verticalLineX, childCenterY, childLeftX, childCenterY);
+                            });
+                        }
+                    });
+                } catch (error) {
+                    console.error('Error in renderAllConnections:', error);
+                }
+            }
+            
+            drawLine(connections, x1, y1, x2, y2) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'connection-line');
+                connections.appendChild(path);
+            }
+            
+            drawSingleConnection(connections, x1, y1, x2, y2) {
+                const midX = (x1 + x2) / 2;
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const pathData = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'connection-line');
+                connections.appendChild(path);
             }
         }
         
