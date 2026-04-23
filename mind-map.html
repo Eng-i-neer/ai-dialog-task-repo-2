@@ -2303,13 +2303,34 @@
                     
                     content.addEventListener('dblclick', (e) => {
                         e.stopPropagation();
-                        this.startEditing(node.id);
+                        this.editingNodeId = node.id;
+                        this.selectedNodeId = node.id;
+                        
+                        setTimeout(() => {
+                            try {
+                                content.focus();
+                                const range = document.createRange();
+                                range.selectNodeContents(content);
+                                const selection = window.getSelection();
+                                selection.removeAllRanges();
+                                selection.addRange(range);
+                            } catch (error) {
+                                console.error('Error in dblclick focus:', error);
+                            }
+                        }, 10);
                     });
                     
                     content.addEventListener('click', (e) => {
                         if (this.editingNodeId !== node.id) {
                             e.stopPropagation();
+                            this.editingNodeId = node.id;
+                            this.selectedNodeId = node.id;
                         }
+                    });
+                    
+                    content.addEventListener('focus', (e) => {
+                        this.editingNodeId = node.id;
+                        this.selectedNodeId = node.id;
                     });
                     
                     content.addEventListener('blur', (e) => {
@@ -2338,10 +2359,8 @@
                     });
                     
                     content.addEventListener('input', (e) => {
-                        if (this.editingNodeId === node.id) {
-                            node.text = e.target.textContent.trim();
-                            this.reLayout();
-                        }
+                        node.text = e.target.textContent.trim();
+                        this.reLayout();
                     });
                     
                     div.appendChild(checkbox);
