@@ -659,6 +659,11 @@
         .main-content {
             margin-left: 0;
             transition: margin-left 0.3s;
+            display: none;
+        }
+        
+        .main-content.show {
+            display: block;
         }
         
         .main-content.with-sidebar {
@@ -1003,6 +1008,11 @@
                     if (this.backendConnected) {
                         await this.loadMindmapsList();
                     }
+                    
+                    this.showSidebar();
+                    const mainContent = document.getElementById('mainContent');
+                    if (mainContent) mainContent.classList.remove('show');
+                    
                     this.render();
                     console.log('MindMap initialized successfully');
                 } catch (error) {
@@ -1386,7 +1396,10 @@
                 const mainContent = document.getElementById('mainContent');
                 
                 if (sidebar) sidebar.classList.add('show');
-                if (mainContent) mainContent.classList.add('with-sidebar');
+                if (mainContent) {
+                    mainContent.classList.remove('show');
+                    mainContent.classList.remove('with-sidebar');
+                }
                 this.renderMindmapList();
             }
             
@@ -1395,7 +1408,6 @@
                 const mainContent = document.getElementById('mainContent');
                 
                 if (sidebar) sidebar.classList.remove('show');
-                if (mainContent) mainContent.classList.remove('with-sidebar');
             }
             
             showSaveDialog() {
@@ -1404,17 +1416,21 @@
                     return;
                 }
                 
-                const dialog = document.getElementById('saveDialog');
-                const overlay = document.getElementById('overlay');
-                const input = document.getElementById('mindmapNameInput');
-                
-                if (input) input.value = this.currentMindmapName;
-                if (dialog) dialog.classList.add('show');
-                if (overlay) overlay.classList.add('show');
-                
-                if (input) {
-                    input.focus();
-                    input.select();
+                if (this.currentMindmapId) {
+                    this.saveMindmapSilent();
+                } else {
+                    const dialog = document.getElementById('saveDialog');
+                    const overlay = document.getElementById('overlay');
+                    const input = document.getElementById('mindmapNameInput');
+                    
+                    if (input) input.value = this.currentMindmapName;
+                    if (dialog) dialog.classList.add('show');
+                    if (overlay) overlay.classList.add('show');
+                    
+                    if (input) {
+                        input.focus();
+                        input.select();
+                    }
                 }
             }
             
@@ -1424,6 +1440,63 @@
                 
                 if (dialog) dialog.classList.remove('show');
                 if (overlay) overlay.classList.remove('show');
+            }
+            
+            async saveMindmapSilent() {
+                if (!this.backendConnected) {
+                    this.showNotification('后端未连接，无法保存', 'error');
+                    return;
+                }
+                
+                const mindmapData = {
+                    nodes: JSON.parse(JSON.stringify(this.nodes)),
+                    nextNodeId: this.nextNodeId,
+                    layoutType: this.layoutType,
+                    connectionStyle: this.connectionStyle,
+                    fontFamily: this.fontFamily
+                };
+                
+                try {
+                    let response;
+                    
+                    if (this.currentMindmapId) {
+                        response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps/${this.currentMindmapId}`, {
+                            method: 'PUT',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: this.currentMindmapName,
+                                data: mindmapData
+                            })
+                        });
+                    } else {
+                        response = await fetch(`${this.apiBaseUrl || API_BASE_URL}/mindmaps`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                name: this.currentMindmapName,
+                                data: mindmapData
+                            })
+                        });
+                    }
+                    
+                    if (response.ok) {
+                        const savedMindmap = await response.json();
+                        this.currentMindmapId = savedMindmap.id;
+                        this.currentMindmapName = savedMindmap.name;
+                        this.updateCurrentMindmapInfo();
+                        this.showNotification('已保存', 'success');
+                        await this.loadMindmapsList();
+                    } else {
+                        this.showNotification('保存失败', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to save mindmap:', error);
+                    this.showNotification('保存失败：无法连接到服务器', 'error');
+                }
             }
             
             newMindmap() {
@@ -1440,6 +1513,11 @@
                     
                     this.updateCurrentMindmapInfo();
                     this.render();
+                    
+                    this.hideSidebar();
+                    const mainContent = document.getElementById('mainContent');
+                    if (mainContent) mainContent.classList.add('show');
+                    
                     this.showNotification('已创建新思维导图', 'info');
                     
                     console.log('newMindmap completed');
@@ -1543,6 +1621,8 @@
                         this.updateCurrentMindmapInfo();
                         this.render();
                         this.hideSidebar();
+                        const mainContent = document.getElementById('mainContent');
+                        if (mainContent) mainContent.classList.add('show');
                         this.showNotification(`已加载：${mindmap.name}`, 'success');
                     } else {
                         this.showNotification('加载失败', 'error');
