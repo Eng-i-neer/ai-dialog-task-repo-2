@@ -1917,8 +1917,20 @@
                 }
             }
             
+            exitEditing() {
+                if (this.editingNodeId) {
+                    const contentElement = document.querySelector(`[data-node-id="${this.editingNodeId}"] .node-content`);
+                    if (contentElement) {
+                        contentElement.blur();
+                    }
+                    this.editingNodeId = null;
+                }
+            }
+            
             navigateToPreviousSibling() {
                 if (!this.selectedNodeId) return;
+                
+                this.exitEditing();
                 
                 const currentNode = this.nodes.find(n => n.id === this.selectedNodeId);
                 if (!currentNode) return;
@@ -1948,6 +1960,8 @@
             navigateToNextSibling() {
                 if (!this.selectedNodeId) return;
                 
+                this.exitEditing();
+                
                 const currentNode = this.nodes.find(n => n.id === this.selectedNodeId);
                 if (!currentNode) return;
                 
@@ -1976,6 +1990,8 @@
             navigateToParent() {
                 if (!this.selectedNodeId) return;
                 
+                this.exitEditing();
+                
                 const currentNode = this.nodes.find(n => n.id === this.selectedNodeId);
                 if (!currentNode || !currentNode.parentId) return;
                 
@@ -1984,6 +2000,8 @@
             
             navigateToFirstChild() {
                 if (!this.selectedNodeId) return;
+                
+                this.exitEditing();
                 
                 const currentNode = this.nodes.find(n => n.id === this.selectedNodeId);
                 if (!currentNode || currentNode.children.length === 0) return;
