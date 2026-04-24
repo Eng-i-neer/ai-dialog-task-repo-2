@@ -2241,6 +2241,14 @@
                     siblings = [];
                 }
                 
+                if (siblings.length === 0) return;
+                
+                if (this.layoutType === 'right') {
+                    siblings.sort((a, b) => a.y - b.y);
+                } else {
+                    siblings.sort((a, b) => a.x - b.x);
+                }
+                
                 const currentIndex = siblings.findIndex(n => n.id === this.selectedNodeId);
                 if (currentIndex > 0) {
                     this.selectNode(siblings[currentIndex - 1].id);
@@ -2269,6 +2277,14 @@
                     }
                 } else {
                     siblings = [];
+                }
+                
+                if (siblings.length === 0) return;
+                
+                if (this.layoutType === 'right') {
+                    siblings.sort((a, b) => a.y - b.y);
+                } else {
+                    siblings.sort((a, b) => a.x - b.x);
                 }
                 
                 const currentIndex = siblings.findIndex(n => n.id === this.selectedNodeId);
