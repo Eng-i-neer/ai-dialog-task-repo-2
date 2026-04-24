@@ -30,6 +30,7 @@ interface EditorState extends MindMapData {
   addChildNode: (parentId: number) => void
   deleteNode: (nodeId: number) => void
   updateNodeText: (nodeId: number, text: string) => void
+  updateNodeTextLive: (nodeId: number, text: string) => void
   toggleNodeChecked: (nodeId: number) => void
   selectNode: (nodeId: number | null) => void
   startEditing: (nodeId: number) => void
@@ -273,6 +274,22 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       nodes: updatedNodes,
       editingNodeId: null
+    })
+  },
+
+  updateNodeTextLive: (nodeId: number, text: string) => {
+    const state = get()
+    const node = state.nodes.find(n => n.id === nodeId)
+    if (!node) return
+    
+    if (node.text === text) return
+    
+    const updatedNodes = state.nodes.map(n =>
+      n.id === nodeId ? { ...n, text } : n
+    )
+    
+    set({
+      nodes: updatedNodes
     })
   },
 

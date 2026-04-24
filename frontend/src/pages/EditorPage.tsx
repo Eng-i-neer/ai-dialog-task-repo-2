@@ -55,6 +55,7 @@ const EditorPage: FC = () => {
     addChildNode,
     deleteNode,
     updateNodeText,
+    updateNodeTextLive,
     toggleNodeChecked,
     selectNode,
     startEditing,
@@ -737,6 +738,10 @@ const EditorPage: FC = () => {
     }
   }, [nodes, updateNodeText, stopEditing])
 
+  const handleContentInput = useCallback((nodeId: number, element: HTMLElement) => {
+    updateNodeTextLive(nodeId, element.textContent || '')
+  }, [updateNodeTextLive])
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     const target = e.target as HTMLElement
     const isClickOnNode = target.closest('.node') !== null
@@ -912,6 +917,9 @@ const EditorPage: FC = () => {
               onFocus={() => {
                 startEditing(node.id)
               }}
+              onInput={e => {
+                handleContentInput(node.id, e.target as HTMLElement)
+              }}
               onBlur={e => {
                 handleContentBlur(node.id, e.target)
               }}
@@ -1018,6 +1026,9 @@ const EditorPage: FC = () => {
                         onFocus={() => {
                           startEditing(column.node!.id)
                         }}
+                        onInput={e => {
+                          handleContentInput(column.node!.id, e.target as HTMLElement)
+                        }}
                         onBlur={e => {
                           handleContentBlur(column.node!.id, e.target)
                         }}
@@ -1105,6 +1116,9 @@ const EditorPage: FC = () => {
                         }}
                         onFocus={() => {
                           startEditing(child.id)
+                        }}
+                        onInput={e => {
+                          handleContentInput(child.id, e.target as HTMLElement)
                         }}
                         onBlur={e => {
                           handleContentBlur(child.id, e.target)
