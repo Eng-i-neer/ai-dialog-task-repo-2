@@ -1189,17 +1189,25 @@
             showProjectPage() {
                 const projectPage = document.getElementById('projectPage');
                 const editorPage = document.getElementById('editorPage');
+                const mainContent = document.getElementById('mainContent');
                 
                 if (projectPage) projectPage.classList.remove('hidden');
                 if (editorPage) editorPage.classList.remove('show');
+                if (mainContent) mainContent.classList.remove('show');
+                
+                if (this.backendConnected) {
+                    this.loadMindmapsList();
+                }
             }
             
             showEditorPage() {
                 const projectPage = document.getElementById('projectPage');
                 const editorPage = document.getElementById('editorPage');
+                const mainContent = document.getElementById('mainContent');
                 
                 if (projectPage) projectPage.classList.add('hidden');
                 if (editorPage) editorPage.classList.add('show');
+                if (mainContent) mainContent.classList.add('show');
             }
             
             bindEventListeners() {
@@ -1316,10 +1324,13 @@
                     }
                 });
                 
-                document.getElementById('sidebarClose').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.hideSidebar();
-                });
+                const sidebarCloseEl = document.getElementById('sidebarClose');
+                if (sidebarCloseEl) {
+                    sidebarCloseEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.hideSidebar();
+                    });
+                }
                 
                 document.getElementById('overlay').addEventListener('click', (e) => {
                     e.stopPropagation();
@@ -1343,15 +1354,21 @@
                     }
                 });
                 
-                document.getElementById('newMindmapFromSidebarBtn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.createNewMindmapFromSidebar();
-                });
+                const newFromSidebarEl = document.getElementById('newMindmapFromSidebarBtn');
+                if (newFromSidebarEl) {
+                    newFromSidebarEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.createNewMindmapFromSidebar();
+                    });
+                }
                 
-                document.getElementById('refreshMindmapListBtn').addEventListener('click', (e) => {
-                    e.stopPropagation();
-                    this.refreshMindmapList();
-                });
+                const refreshListEl = document.getElementById('refreshMindmapListBtn');
+                if (refreshListEl) {
+                    refreshListEl.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        this.refreshMindmapList();
+                    });
+                }
                 
                 document.getElementById('cancelRenameBtn').addEventListener('click', (e) => {
                     e.stopPropagation();
