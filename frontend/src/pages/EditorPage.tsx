@@ -4,7 +4,7 @@ import { useEditorStore } from '../store/store'
 import { getMindMap, createMindMap, updateMindMap } from '../services/api'
 import toast from 'react-hot-toast'
 import type { FC } from 'react'
-import type { LayoutType, ConnectionStyle, MindMapNode, NodeType, ViewMode } from '../types'
+import type { LayoutType, ConnectionStyle, MindMapNode, NodeType, ViewMode, TextDecoration, SelectionBox, PropertyTab } from '../types'
 import '../styles/EditorPage.css'
 
 const DEFAULT_NODE_HEIGHT = 35
@@ -24,6 +24,8 @@ const FONT_OPTIONS: { value: string; label: string }[] = [
   { value: "'Courier New', monospace", label: 'Courier New' },
 ]
 
+const FONT_SIZE_OPTIONS = [10, 12, 14, 16, 18, 20, 24, 28, 32, 36, 48]
+
 const EditorPage: FC = () => {
   const { id } = useParams<{ id?: string }>()
   const navigate = useNavigate()
@@ -40,6 +42,7 @@ const EditorPage: FC = () => {
     connectionStyle,
     fontFamily,
     selectedNodeId,
+    selectedNodeIds,
     editingNodeId,
     contextMenuNodeId,
     contextMenuPosition,
@@ -51,6 +54,9 @@ const EditorPage: FC = () => {
     canvasOffsetX,
     canvasOffsetY,
     isPanning,
+    isSelecting,
+    selectionBox,
+    activeTab,
     addCenterNode,
     addChildNode,
     deleteNode,
@@ -58,6 +64,8 @@ const EditorPage: FC = () => {
     updateNodeTextLive,
     toggleNodeChecked,
     selectNode,
+    selectMultipleNodes,
+    clearSelection,
     startEditing,
     stopEditing,
     showContextMenu,
@@ -73,7 +81,18 @@ const EditorPage: FC = () => {
     setViewMode,
     startPan,
     updatePan,
-    endPan
+    endPan,
+    startSelection,
+    updateSelection,
+    endSelection,
+    setSelectedNodesFontSize,
+    setSelectedNodesFontWeight,
+    setSelectedNodesTextDecoration,
+    setSelectedNodesFontFamily,
+    toggleBold,
+    toggleUnderline,
+    toggleLineThrough,
+    setActiveTab
   } = useEditorStore()
 
   useEffect(() => {
@@ -218,6 +237,9 @@ const EditorPage: FC = () => {
         if (editingNodeId) {
           stopEditing()
         }
+        if (selectedNodeIds.size > 0) {
+          clearSelection()
+        }
       }
       
       if (e.key === 'Enter' && editingNodeId) {
@@ -232,11 +254,21 @@ const EditorPage: FC = () => {
           }
         }
       }
+      
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault()
+        toggleBold()
+      }
+      
+      if (e.ctrlKey && e.key === 'u') {
+        e.preventDefault()
+        toggleUnderline()
+      }
     }
     
     document.addEventListener('keydown', handleKeyDown)
     return () => document.removeEventListener('keydown', handleKeyDown)
-  }, [undo, redo, editingNodeId, selectedNodeId, startEditing, hideContextMenu, stopEditing, handleSave, updateNodeText, nodes])
+  }, [undo, redo, editingNodeId, selectedNodeId, selectedNodeIds, startEditing, hideContextMenu, stopEditing, clearSelection, handleSave, updateNodeText, nodes, toggleBold, toggleUnderline])
 
   const navigateToPreviousSibling = useCallback(() => {
     if (!selectedNodeId) return
@@ -748,22 +780,80 @@ const EditorPage: FC = () => {
     const isClickOnInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
     const isContentEditable = target.classList.contains('node-content') || target.classList.contains('kanban-card-content')
     
-    if (!isClickOnNode && !isClickOnInput && !isContentEditable) {
-      startPan(e.clientX, e.clientY)
+    if (isClickOnNode) {
+      const nodeElement = target.closest('.node') as HTMLElement
+      const nodeId = parseInt(nodeElement.getAttribute('data-node-id') || '0', 10)
+      
+      if (e.shiftKey) {
+        selectNode(nodeId, true)
+      } else {
+        selectNode(nodeId, false)
+      }
+    } else if (!isClickOnInput && !isContentEditable) {
+      const container = containerRef.current
+      if (container && viewMode === 'mindmap') {
+        const rect = container.getBoundingClientRect()
+        const selectionX = e.clientX - rect.left - canvasOffsetX
+        const selectionY = e.clientY - rect.top - canvasOffsetY
+        
+        if (e.shiftKey && selectedNodeIds.size > 0) {
+          startSelection(selectionX, selectionY)
+        } else if (e.shiftKey) {
+          startSelection(selectionX, selectionY)
+        } else {
+          startPan(e.clientX, e.clientY)
+          clearSelection()
+        }
+      }
     }
-  }, [startPan])
+  }, [selectNode, startPan, clearSelection, startSelection, selectedNodeIds, viewMode, canvasOffsetX, canvasOffsetY])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (isPanning) {
       updatePan(e.clientX, e.clientY)
+    } else if (isSelecting) {
+      const container = containerRef.current
+      if (container) {
+        const rect = container.getBoundingClientRect()
+        const selectionX = e.clientX - rect.left - canvasOffsetX
+        const selectionY = e.clientY - rect.top - canvasOffsetY
+        
+        updateSelection(selectionX, selectionY)
+        
+        if (selectionBox) {
+          const minX = Math.min(selectionBox.startX, selectionX)
+          const maxX = Math.max(selectionBox.startX, selectionX)
+          const minY = Math.min(selectionBox.startY, selectionY)
+          const maxY = Math.max(selectionBox.startY, selectionY)
+          
+          const selectedNodeIdsInBox = positionedNodes.filter(node => {
+            const nodeWidth = getNodeWidth(node.id)
+            const nodeHeight = getNodeHeight(node.id)
+            
+            const nodeLeft = node.x
+            const nodeRight = node.x + nodeWidth
+            const nodeTop = node.y
+            const nodeBottom = node.y + nodeHeight
+            
+            return !(nodeRight < minX || nodeLeft > maxX || nodeBottom < minY || nodeTop > maxY)
+          }).map(node => node.id)
+          
+          if (selectedNodeIdsInBox.length > 0) {
+            selectMultipleNodes(selectedNodeIdsInBox)
+          }
+        }
+      }
     }
-  }, [isPanning, updatePan])
+  }, [isPanning, isSelecting, updatePan, updateSelection, selectionBox, positionedNodes, selectMultipleNodes, getNodeWidth, getNodeHeight, canvasOffsetX, canvasOffsetY])
 
   const handleMouseUp = useCallback(() => {
     if (isPanning) {
       endPan()
     }
-  }, [isPanning, endPan])
+    if (isSelecting) {
+      endSelection()
+    }
+  }, [isPanning, isSelecting, endPan, endSelection])
 
   const contextMenuNode = useMemo(() => {
     if (contextMenuNodeId === null) return null
@@ -802,6 +892,50 @@ const EditorPage: FC = () => {
     return centerNodes.map(center => buildColumn(center))
   }, [nodes])
 
+  const selectedNodes = useMemo(() => {
+    return nodes.filter(n => selectedNodeIds.has(n.id))
+  }, [nodes, selectedNodeIds])
+
+  const getCommonFontSize = useMemo(() => {
+    if (selectedNodes.length === 0) return null
+    const sizes = selectedNodes.map(n => n.fontSize)
+    return sizes.every(s => s === sizes[0]) ? sizes[0] : null
+  }, [selectedNodes])
+
+  const getCommonFontWeight = useMemo(() => {
+    if (selectedNodes.length === 0) return 'normal'
+    const weights = selectedNodes.map(n => n.fontWeight || 'normal')
+    return weights.every(w => w === weights[0]) ? weights[0] : 'normal'
+  }, [selectedNodes])
+
+  const getCommonTextDecoration = useMemo(() => {
+    if (selectedNodes.length === 0) return 'none'
+    const decorations = selectedNodes.map(n => n.textDecoration || 'none')
+    return decorations.every(d => d === decorations[0]) ? decorations[0] : 'none'
+  }, [selectedNodes])
+
+  const hasUnderline = getCommonTextDecoration.includes('underline')
+  const hasLineThrough = getCommonTextDecoration.includes('line-through')
+  const isBold = getCommonFontWeight === 'bold'
+
+  const getSelectionBoxStyle = (): React.CSSProperties | null => {
+    if (!selectionBox) return null
+    
+    const x = Math.min(selectionBox.startX, selectionBox.endX) + canvasOffsetX
+    const y = Math.min(selectionBox.startY, selectionBox.endY) + canvasOffsetY
+    const width = Math.abs(selectionBox.endX - selectionBox.startX)
+    const height = Math.abs(selectionBox.endY - selectionBox.startY)
+    
+    return {
+      left: x,
+      top: y,
+      width,
+      height
+    }
+  }
+
+  const selectionBoxStyle = getSelectionBoxStyle()
+
   if (isLoading) {
     return (
       <div className="editor-page">
@@ -821,7 +955,7 @@ const EditorPage: FC = () => {
       onMouseMove={handleMouseMove}
       onMouseUp={handleMouseUp}
       onMouseLeave={handleMouseUp}
-      style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
+      style={{ cursor: isPanning ? 'grabbing' : (isSelecting ? 'crosshair' : 'grab') }}
     >
       <div 
         className="mindmap-canvas"
@@ -831,12 +965,19 @@ const EditorPage: FC = () => {
           transform: `translate(${canvasOffsetX}px, ${canvasOffsetY}px)`
         }}
         onClick={e => {
-          if (e.target === e.currentTarget) {
-            selectNode(null)
+          if (e.target === e.currentTarget && !isPanning && !isSelecting) {
+            clearSelection()
             hideContextMenu()
           }
         }}
       >
+        {selectionBoxStyle && (
+          <div 
+            className="selection-box"
+            style={selectionBoxStyle}
+          />
+        )}
+        
         <svg 
           className="connections-svg"
           width={containerSize.width}
@@ -851,93 +992,101 @@ const EditorPage: FC = () => {
           ))}
         </svg>
         
-        {positionedNodes.map(node => (
-          <div
-            key={node.id}
-            ref={el => handleNodeRef(node.id, el)}
-            className={`node ${selectedNodeId === node.id ? 'selected' : ''} ${node.nodeType === 'text' ? 'node-text-type' : ''}`}
-            style={{
-              left: node.x,
-              top: node.y,
-              fontFamily: fontFamily
-            }}
-            data-node-id={node.id}
-            onClick={e => {
-              e.stopPropagation()
-              if (editingNodeId !== null && editingNodeId !== node.id) {
-                const editingElement = document.querySelector(
-                  `[data-node-id="${editingNodeId}"] .node-content`
-                ) as HTMLElement | null
-                if (editingElement) {
-                  editingElement.blur()
-                }
-              }
-              selectNode(node.id)
-            }}
-            onContextMenu={e => {
-              e.preventDefault()
-              e.stopPropagation()
-              showContextMenu(node.id, e.clientX, e.clientY)
-            }}
-          >
-            {node.nodeType === 'task' && (
-              <input
-                type="checkbox"
-                className={`node-checkbox ${node.checked ? 'checked' : ''}`}
-                checked={node.checked}
-                onChange={e => {
-                  e.stopPropagation()
-                  if (editingNodeId !== null && editingNodeId !== node.id) {
-                    const editingElement = document.querySelector(
-                      `[data-node-id="${editingNodeId}"] .node-content`
-                    ) as HTMLElement | null
-                    if (editingElement) {
-                      editingElement.blur()
-                    }
-                  }
-                  toggleNodeChecked(node.id)
-                }}
-              />
-            )}
+        {positionedNodes.map(node => {
+          const isSelected = selectedNodeIds.has(node.id) || selectedNodeId === node.id
+          const textDecoration = node.textDecoration || 'none'
+          const fontWeight = node.fontWeight || 'normal'
+          
+          return (
             <div
-              className="node-content"
-              contentEditable={true}
-              suppressContentEditableWarning={true}
-              onDoubleClick={e => {
+              key={node.id}
+              ref={el => handleNodeRef(node.id, el)}
+              className={`node ${isSelected ? 'selected' : ''} ${node.nodeType === 'text' ? 'node-text-type' : ''}`}
+              style={{
+                left: node.x,
+                top: node.y,
+                fontFamily: fontFamily,
+                fontSize: node.fontSize ? `${node.fontSize}px` : undefined,
+                fontWeight: fontWeight,
+                textDecoration: textDecoration
+              }}
+              data-node-id={node.id}
+              onClick={e => {
                 e.stopPropagation()
-                startEditing(node.id)
-                setTimeout(() => {
-                  const range = document.createRange()
-                  range.selectNodeContents(e.currentTarget)
-                  const selection = window.getSelection()
-                  selection?.removeAllRanges()
-                  selection?.addRange(range)
-                }, 10)
-              }}
-              onFocus={() => {
-                startEditing(node.id)
-              }}
-              onInput={e => {
-                handleContentInput(node.id, e.target as HTMLElement)
-              }}
-              onBlur={e => {
-                handleContentBlur(node.id, e.target)
-              }}
-              onKeyDown={e => {
-                if (e.key === 'Escape') {
-                  e.preventDefault()
-                  e.currentTarget.blur()
+                if (editingNodeId !== null && editingNodeId !== node.id) {
+                  const editingElement = document.querySelector(
+                    `[data-node-id="${editingNodeId}"] .node-content`
+                  ) as HTMLElement | null
+                  if (editingElement) {
+                    editingElement.blur()
+                  }
                 }
-                if (e.key === 'Enter' && e.ctrlKey) {
-                  e.preventDefault()
-                  handleContentBlur(node.id, e.currentTarget)
-                }
+              }}
+              onContextMenu={e => {
+                e.preventDefault()
+                e.stopPropagation()
+                showContextMenu(node.id, e.clientX, e.clientY)
               }}
             >
-              {node.text}
+              {node.nodeType === 'task' && (
+                <input
+                  type="checkbox"
+                  className={`node-checkbox ${node.checked ? 'checked' : ''}`}
+                  checked={node.checked}
+                  onChange={e => {
+                    e.stopPropagation()
+                    if (editingNodeId !== null && editingNodeId !== node.id) {
+                      const editingElement = document.querySelector(
+                        `[data-node-id="${editingNodeId}"] .node-content`
+                      ) as HTMLElement | null
+                      if (editingElement) {
+                        editingElement.blur()
+                      }
+                    }
+                    toggleNodeChecked(node.id)
+                  }}
+                />
+              )}
+              <div
+                className="node-content"
+                contentEditable={true}
+                suppressContentEditableWarning={true}
+                onDoubleClick={e => {
+                  e.stopPropagation()
+                  startEditing(node.id)
+                  setTimeout(() => {
+                    const range = document.createRange()
+                    range.selectNodeContents(e.currentTarget)
+                    const selection = window.getSelection()
+                    selection?.removeAllRanges()
+                    selection?.addRange(range)
+                  }, 10)
+                }}
+                onFocus={() => {
+                  startEditing(node.id)
+                }}
+                onInput={e => {
+                  handleContentInput(node.id, e.target as HTMLElement)
+                }}
+                onBlur={e => {
+                  handleContentBlur(node.id, e.target)
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Escape') {
+                    e.preventDefault()
+                    e.currentTarget.blur()
+                  }
+                  if (e.key === 'Enter' && e.ctrlKey) {
+                    e.preventDefault()
+                    handleContentBlur(node.id, e.currentTarget)
+                  }
+                }}
+              >
+                {node.text}
+              </div>
             </div>
-          </div>
-        ))}
+          )
+        })}
         
         {positionedNodes.length === 0 && (
           <div className="empty-message">
@@ -968,8 +1117,13 @@ const EditorPage: FC = () => {
                   {level === 0 && column.node ? (
                     <div
                       key={column.node.id}
-                      className={`kanban-card ${selectedNodeId === column.node.id ? 'selected' : ''} ${column.node.nodeType === 'text' ? 'node-text-type' : ''}`}
-                      style={{ fontFamily: fontFamily }}
+                      className={`kanban-card ${selectedNodeIds.has(column.node.id) ? 'selected' : ''} ${column.node.nodeType === 'text' ? 'node-text-type' : ''}`}
+                      style={{ 
+                        fontFamily: fontFamily,
+                        fontSize: column.node.fontSize ? `${column.node.fontSize}px` : undefined,
+                        fontWeight: column.node.fontWeight || 'normal',
+                        textDecoration: column.node.textDecoration || 'none'
+                      }}
                       data-node-id={column.node.id}
                       onClick={e => {
                         e.stopPropagation()
@@ -981,7 +1135,11 @@ const EditorPage: FC = () => {
                             editingElement.blur()
                           }
                         }
-                        selectNode(column.node!.id)
+                        if (e.shiftKey) {
+                          selectNode(column.node!.id, true)
+                        } else {
+                          selectNode(column.node!.id, false)
+                        }
                       }}
                       onContextMenu={e => {
                         e.preventDefault()
@@ -1059,8 +1217,13 @@ const EditorPage: FC = () => {
                   {level > 0 && column.children.map(child => (
                     <div
                       key={child.id}
-                      className={`kanban-card ${selectedNodeId === child.id ? 'selected' : ''} ${child.nodeType === 'text' ? 'node-text-type' : ''}`}
-                      style={{ fontFamily: fontFamily }}
+                      className={`kanban-card ${selectedNodeIds.has(child.id) ? 'selected' : ''} ${child.nodeType === 'text' ? 'node-text-type' : ''}`}
+                      style={{ 
+                        fontFamily: fontFamily,
+                        fontSize: child.fontSize ? `${child.fontSize}px` : undefined,
+                        fontWeight: child.fontWeight || 'normal',
+                        textDecoration: child.textDecoration || 'none'
+                      }}
                       data-node-id={child.id}
                       onClick={e => {
                         e.stopPropagation()
@@ -1072,7 +1235,11 @@ const EditorPage: FC = () => {
                             editingElement.blur()
                           }
                         }
-                        selectNode(child.id)
+                        if (e.shiftKey) {
+                          selectNode(child.id, true)
+                        } else {
+                          selectNode(child.id, false)
+                        }
                       }}
                       onContextMenu={e => {
                         e.preventDefault()
@@ -1152,6 +1319,209 @@ const EditorPage: FC = () => {
             </div>
           ))
         )}
+      </div>
+    )
+  }
+
+  const renderPropertyPanel = () => {
+    const hasSelection = selectedNodeIds.size > 0 || selectedNodeId !== null
+    
+    return (
+      <div className="property-panel">
+        <div className="property-tabs">
+          <button 
+            className={`property-tab ${activeTab === 'style' ? 'active' : ''}`}
+            onClick={() => setActiveTab('style')}
+          >
+            样式
+          </button>
+          <button 
+            className={`property-tab ${activeTab === 'node' ? 'active' : ''}`}
+            onClick={() => setActiveTab('node')}
+          >
+            节点
+          </button>
+        </div>
+        
+        <div className="property-content">
+          {!hasSelection ? (
+            <div className="no-selection">
+              请选择一个或多个节点
+            </div>
+          ) : (
+            <>
+              {activeTab === 'style' && (
+                <div className="style-properties">
+                  <div className="property-section">
+                    <div className="property-section-title">文本样式</div>
+                    
+                    <div className="property-row">
+                      <label className="property-label">字号</label>
+                      <select 
+                        className="property-select"
+                        value={getCommonFontSize || ''}
+                        onChange={e => {
+                          const size = e.target.value ? parseInt(e.target.value, 10) : null
+                          setSelectedNodesFontSize(size)
+                        }}
+                      >
+                        <option value="">默认</option>
+                        {FONT_SIZE_OPTIONS.map(size => (
+                          <option key={size} value={size}>{size}px</option>
+                        ))}
+                      </select>
+                    </div>
+                    
+                    <div className="property-row">
+                      <label className="property-label">字体</label>
+                      <select 
+                        className="property-select"
+                        value={fontFamily}
+                        onChange={e => {
+                          setSelectedNodesFontFamily(e.target.value)
+                        }}
+                      >
+                        {FONT_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="property-section">
+                    <div className="property-section-title">文本格式</div>
+                    
+                    <div className="property-toolbar">
+                      <button
+                        className={`tool-btn ${isBold ? 'active' : ''}`}
+                        onClick={toggleBold}
+                        title="加粗 (Ctrl+B)"
+                      >
+                        <strong>B</strong>
+                      </button>
+                      <button
+                        className={`tool-btn ${hasUnderline ? 'active' : ''}`}
+                        onClick={toggleUnderline}
+                        title="下划线 (Ctrl+U)"
+                      >
+                        <u>U</u>
+                      </button>
+                      <button
+                        className={`tool-btn ${hasLineThrough ? 'active' : ''}`}
+                        onClick={toggleLineThrough}
+                        title="删除线"
+                      >
+                        <s>S</s>
+                      </button>
+                    </div>
+                    
+                    <div className="property-row">
+                      <label className="property-label">下划线</label>
+                      <label className="property-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={hasUnderline}
+                          onChange={() => toggleUnderline()}
+                        />
+                        <span>启用下划线</span>
+                      </label>
+                    </div>
+                    
+                    <div className="property-row">
+                      <label className="property-label">删除线</label>
+                      <label className="property-checkbox-label">
+                        <input
+                          type="checkbox"
+                          checked={hasLineThrough}
+                          onChange={() => toggleLineThrough()}
+                        />
+                        <span>启用删除线</span>
+                      </label>
+                    </div>
+                  </div>
+                  
+                  <div className="property-section">
+                    <div className="property-section-title">快捷操作</div>
+                    
+                    <div className="property-note">
+                      <div className="property-note-title">键盘快捷键:</div>
+                      <div className="property-note-content">
+                        <div>• <strong>Shift + 拖拽</strong>: 框选多个节点</div>
+                        <div>• <strong>Shift + 点击</strong>: 切换选中状态</div>
+                        <div>• <strong>Ctrl+B</strong>: 加粗</div>
+                        <div>• <strong>Ctrl+U</strong>: 下划线</div>
+                        <div>• <strong>Esc</strong>: 取消选中</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+              
+              {activeTab === 'node' && (
+                <div className="node-properties">
+                  <div className="property-section">
+                    <div className="property-section-title">节点信息</div>
+                    
+                    <div className="property-row">
+                      <label className="property-label">节点数量</label>
+                      <span className="property-value">{selectedNodes.length} 个节点</span>
+                    </div>
+                    
+                    <div className="property-row">
+                      <label className="property-label">节点类型</label>
+                      <select 
+                        className="property-select"
+                        value={selectedNodes.length === 1 && selectedNodes[0].nodeType ? selectedNodes[0].nodeType : ''}
+                        onChange={e => {
+                          const type = e.target.value as NodeType
+                          if (selectedNodes.length === 1) {
+                            setNodeType(selectedNodes[0].id, type)
+                          }
+                        }}
+                      >
+                        <option value="">选择节点类型</option>
+                        <option value="task">任务框</option>
+                        <option value="text">文本框</option>
+                      </select>
+                    </div>
+                  </div>
+                  
+                  <div className="property-section">
+                    <div className="property-section-title">批量操作</div>
+                    
+                    <div className="property-toolbar">
+                      <button
+                        className="tool-btn danger"
+                        onClick={() => {
+                          if (selectedNodeIds.size > 0) {
+                            const nodeIdToDelete = selectedNodeId || Array.from(selectedNodeIds)[0]
+                            if (nodeIdToDelete) {
+                              deleteNode(nodeIdToDelete)
+                            }
+                          }
+                        }}
+                        title="删除选中节点"
+                      >
+                        删除选中节点
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <div className="property-section">
+                    <div className="property-section-title">提示</div>
+                    
+                    <div className="property-note">
+                      <div className="property-note-title">框选方法:</div>
+                      <div className="property-note-content">
+                        按住 <strong>Shift</strong> 键的同时，在画布空白处拖拽鼠标即可框选多个节点。
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
     )
   }
@@ -1238,9 +1608,22 @@ const EditorPage: FC = () => {
             ))}
           </select>
         </div>
+        
+        {selectedNodeIds.size > 0 && (
+          <>
+            <div className="toolbar-separator" />
+            <div className="selection-info">
+              已选择 {selectedNodeIds.size} 个节点
+            </div>
+          </>
+        )}
       </div>
       
-      {viewMode === 'mindmap' ? renderMindMapView() : renderKanbanView()}
+      <div className="main-content">
+        {viewMode === 'mindmap' ? renderMindMapView() : renderKanbanView()}
+        
+        {renderPropertyPanel()}
+      </div>
       
       {contextMenuPosition && contextMenuNodeId !== null && (
         <div 

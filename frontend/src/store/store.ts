@@ -6,7 +6,10 @@ import type {
   LayoutType, 
   ConnectionStyle,
   NodeType,
-  ViewMode
+  ViewMode,
+  TextDecoration,
+  SelectionBox,
+  PropertyTab
 } from '../types'
 
 const DEFAULT_FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
@@ -14,6 +17,7 @@ const MAX_HISTORY_SIZE = 50
 
 interface EditorState extends MindMapData {
   selectedNodeId: number | null
+  selectedNodeIds: Set<number>
   editingNodeId: number | null
   contextMenuNodeId: number | null
   contextMenuPosition: { x: number; y: number } | null
@@ -25,6 +29,9 @@ interface EditorState extends MindMapData {
   isPanning: boolean
   lastMouseX: number
   lastMouseY: number
+  isSelecting: boolean
+  selectionBox: SelectionBox | null
+  activeTab: PropertyTab
   
   addCenterNode: () => void
   addChildNode: (parentId: number) => void
@@ -32,7 +39,9 @@ interface EditorState extends MindMapData {
   updateNodeText: (nodeId: number, text: string) => void
   updateNodeTextLive: (nodeId: number, text: string) => void
   toggleNodeChecked: (nodeId: number) => void
-  selectNode: (nodeId: number | null) => void
+  selectNode: (nodeId: number | null, addToSelection?: boolean) => void
+  selectMultipleNodes: (nodeIds: number[]) => void
+  clearSelection: () => void
   startEditing: (nodeId: number) => void
   stopEditing: () => void
   showContextMenu: (nodeId: number, x: number, y: number) => void
@@ -53,6 +62,17 @@ interface EditorState extends MindMapData {
   startPan: (x: number, y: number) => void
   updatePan: (x: number, y: number) => void
   endPan: () => void
+  startSelection: (x: number, y: number) => void
+  updateSelection: (x: number, y: number) => void
+  endSelection: () => void
+  setSelectedNodesFontSize: (size: number | null) => void
+  setSelectedNodesFontWeight: (weight: 'normal' | 'bold') => void
+  setSelectedNodesTextDecoration: (decoration: TextDecoration) => void
+  setSelectedNodesFontFamily: (font: string) => void
+  toggleUnderline: () => void
+  toggleLineThrough: () => void
+  toggleBold: () => void
+  setActiveTab: (tab: PropertyTab) => void
 }
 
 interface ProjectsState {
@@ -81,6 +101,7 @@ export const DEFAULT_EMPTY_DATA: MindMapData = {
 export const useEditorStore = create<EditorState>((set, get) => ({
   ...DEFAULT_EMPTY_DATA,
   selectedNodeId: null,
+  selectedNodeIds: new Set<number>(),
   editingNodeId: null,
   contextMenuNodeId: null,
   contextMenuPosition: null,
@@ -92,6 +113,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isPanning: false,
   lastMouseX: 0,
   lastMouseY: 0,
+  isSelecting: false,
+  selectionBox: null,
+  activeTab: 'style',
 
   saveStateToHistory: () => {
     const state = get()
@@ -131,10 +155,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ...prevState,
         historyIndex: prevIndex,
         selectedNodeId: null,
+        selectedNodeIds: new Set<number>(),
         editingNodeId: null,
         contextMenuNodeId: null,
         contextMenuPosition: null,
-        isPanning: false
+        isPanning: false,
+        isSelecting: false,
+        selectionBox: null
       })
     }
   },
@@ -151,10 +178,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         ...nextState,
         historyIndex: nextIndex,
         selectedNodeId: null,
+        selectedNodeIds: new Set<number>(),
         editingNodeId: null,
         contextMenuNodeId: null,
         contextMenuPosition: null,
-        isPanning: false
+        isPanning: false,
+        isSelecting: false,
+        selectionBox: null
       })
     }
   },
@@ -249,9 +279,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         children: n.children.filter(cId => !nodesToDelete.has(cId))
       }))
     
+    const newSelectedIds = new Set(state.selectedNodeIds)
+    nodesToDelete.forEach(id => newSelectedIds.delete(id))
+    
     set({
       nodes: updatedNodes,
       selectedNodeId: state.selectedNodeId === nodeId ? null : state.selectedNodeId,
+      selectedNodeIds: newSelectedIds,
       editingNodeId: state.editingNodeId === nodeId ? null : state.editingNodeId,
       contextMenuNodeId: null,
       contextMenuPosition: null
@@ -302,8 +336,40 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ nodes: updatedNodes })
   },
 
-  selectNode: (nodeId: number | null) => {
-    set({ selectedNodeId: nodeId })
+  selectNode: (nodeId: number | null, addToSelection: boolean = false) => {
+    const state = get()
+    if (addToSelection && nodeId !== null) {
+      const newSelectedIds = new Set(state.selectedNodeIds)
+      if (newSelectedIds.has(nodeId)) {
+        newSelectedIds.delete(nodeId)
+      } else {
+        newSelectedIds.add(nodeId)
+      }
+      set({
+        selectedNodeId: nodeId,
+        selectedNodeIds: newSelectedIds
+      })
+    } else {
+      set({
+        selectedNodeId: nodeId,
+        selectedNodeIds: nodeId !== null ? new Set([nodeId]) : new Set<number>()
+      })
+    }
+  },
+
+  selectMultipleNodes: (nodeIds: number[]) => {
+    const newSet = new Set(nodeIds)
+    set({
+      selectedNodeIds: newSet,
+      selectedNodeId: nodeIds.length > 0 ? nodeIds[0] : null
+    })
+  },
+
+  clearSelection: () => {
+    set({
+      selectedNodeIds: new Set<number>(),
+      selectedNodeId: null
+    })
   },
 
   startEditing: (nodeId: number) => {
@@ -401,6 +467,178 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ isPanning: false })
   },
 
+  startSelection: (x: number, y: number) => {
+    set({ 
+      isSelecting: true, 
+      selectionBox: { startX: x, startY: y, endX: x, endY: y }
+    })
+  },
+
+  updateSelection: (x: number, y: number) => {
+    const state = get()
+    if (!state.isSelecting || !state.selectionBox) return
+    
+    set({
+      selectionBox: {
+        ...state.selectionBox,
+        endX: x,
+        endY: y
+      }
+    })
+  },
+
+  endSelection: () => {
+    set({ 
+      isSelecting: false,
+      selectionBox: null
+    })
+  },
+
+  setSelectedNodesFontSize: (size: number | null) => {
+    const state = get()
+    if (state.selectedNodeIds.size === 0) return
+    
+    state.saveStateToHistory()
+    
+    const updatedNodes = state.nodes.map(node => {
+      if (state.selectedNodeIds.has(node.id)) {
+        return { ...node, fontSize: size || undefined }
+      }
+      return node
+    })
+    
+    set({ nodes: updatedNodes })
+  },
+
+  setSelectedNodesFontWeight: (weight: 'normal' | 'bold') => {
+    const state = get()
+    if (state.selectedNodeIds.size === 0) return
+    
+    state.saveStateToHistory()
+    
+    const updatedNodes = state.nodes.map(node => {
+      if (state.selectedNodeIds.has(node.id)) {
+        return { ...node, fontWeight: weight }
+      }
+      return node
+    })
+    
+    set({ nodes: updatedNodes })
+  },
+
+  setSelectedNodesTextDecoration: (decoration: TextDecoration) => {
+    const state = get()
+    if (state.selectedNodeIds.size === 0) return
+    
+    state.saveStateToHistory()
+    
+    const updatedNodes = state.nodes.map(node => {
+      if (state.selectedNodeIds.has(node.id)) {
+        return { ...node, textDecoration: decoration === 'none' ? undefined : decoration }
+      }
+      return node
+    })
+    
+    set({ nodes: updatedNodes })
+  },
+
+  setSelectedNodesFontFamily: (font: string) => {
+    const state = get()
+    if (state.selectedNodeIds.size === 0) return
+    
+    state.saveStateToHistory()
+    
+    const updatedNodes = state.nodes.map(node => {
+      if (state.selectedNodeIds.has(node.id)) {
+        return { ...node, fontFamily: font }
+      }
+      return node
+    })
+    
+    set({ nodes: updatedNodes })
+  },
+
+  toggleBold: () => {
+    const state = get()
+    if (state.selectedNodeIds.size === 0) return
+    
+    state.saveStateToHistory()
+    
+    const firstSelectedId = Array.from(state.selectedNodeIds)[0]
+    const firstSelectedNode = state.nodes.find(n => n.id === firstSelectedId)
+    const isBold = firstSelectedNode?.fontWeight === 'bold'
+    const newWeight: 'normal' | 'bold' = isBold ? 'normal' : 'bold'
+    
+    const updatedNodes = state.nodes.map(node => {
+      if (state.selectedNodeIds.has(node.id)) {
+        return { ...node, fontWeight: newWeight }
+      }
+      return node
+    })
+    
+    set({ nodes: updatedNodes })
+  },
+
+  toggleUnderline: () => {
+    const state = get()
+    if (state.selectedNodeIds.size === 0) return
+    
+    state.saveStateToHistory()
+    
+    const firstSelectedId = Array.from(state.selectedNodeIds)[0]
+    const firstSelectedNode = state.nodes.find(n => n.id === firstSelectedId)
+    const decoration = firstSelectedNode?.textDecoration || 'none'
+    const hasUnderline = decoration.includes('underline')
+    
+    let newDecoration: TextDecoration
+    if (hasUnderline) {
+      newDecoration = decoration.replace('underline', '').trim() as TextDecoration || 'none'
+    } else {
+      newDecoration = decoration === 'none' ? 'underline' : `${decoration} underline` as TextDecoration
+    }
+    
+    const updatedNodes = state.nodes.map(node => {
+      if (state.selectedNodeIds.has(node.id)) {
+        return { ...node, textDecoration: newDecoration === 'none' ? undefined : newDecoration }
+      }
+      return node
+    })
+    
+    set({ nodes: updatedNodes })
+  },
+
+  toggleLineThrough: () => {
+    const state = get()
+    if (state.selectedNodeIds.size === 0) return
+    
+    state.saveStateToHistory()
+    
+    const firstSelectedId = Array.from(state.selectedNodeIds)[0]
+    const firstSelectedNode = state.nodes.find(n => n.id === firstSelectedId)
+    const decoration = firstSelectedNode?.textDecoration || 'none'
+    const hasLineThrough = decoration.includes('line-through')
+    
+    let newDecoration: TextDecoration
+    if (hasLineThrough) {
+      newDecoration = decoration.replace('line-through', '').trim() as TextDecoration || 'none'
+    } else {
+      newDecoration = decoration === 'none' ? 'line-through' : `${decoration} line-through` as TextDecoration
+    }
+    
+    const updatedNodes = state.nodes.map(node => {
+      if (state.selectedNodeIds.has(node.id)) {
+        return { ...node, textDecoration: newDecoration === 'none' ? undefined : newDecoration }
+      }
+      return node
+    })
+    
+    set({ nodes: updatedNodes })
+  },
+
+  setActiveTab: (tab: PropertyTab) => {
+    set({ activeTab: tab })
+  },
+
   setCurrentMindmap: (id: number | null, name: string, data?: MindMapData) => {
     if (data) {
       set({
@@ -415,10 +653,14 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         canvasOffsetX: data.canvasOffsetX || 0,
         canvasOffsetY: data.canvasOffsetY || 0,
         selectedNodeId: null,
+        selectedNodeIds: new Set<number>(),
         editingNodeId: null,
         contextMenuNodeId: null,
         contextMenuPosition: null,
         isPanning: false,
+        isSelecting: false,
+        selectionBox: null,
+        activeTab: 'style',
         history: [{ ...data, viewMode: data.viewMode || 'mindmap', canvasOffsetX: data.canvasOffsetX || 0, canvasOffsetY: data.canvasOffsetY || 0 }],
         historyIndex: 0
       })
@@ -434,12 +676,16 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({
       ...DEFAULT_EMPTY_DATA,
       selectedNodeId: null,
+      selectedNodeIds: new Set<number>(),
       editingNodeId: null,
       contextMenuNodeId: null,
       contextMenuPosition: null,
       currentMindmapId: null,
       currentMindmapName: '新思维导图',
       isPanning: false,
+      isSelecting: false,
+      selectionBox: null,
+      activeTab: 'style',
       history: [{ ...DEFAULT_EMPTY_DATA }],
       historyIndex: 0
     })
