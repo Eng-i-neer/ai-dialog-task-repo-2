@@ -32,6 +32,7 @@ const EditorPage: FC = () => {
   
   const containerRef = useRef<HTMLDivElement>(null)
   const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map())
+  const isDragOperationRef = useRef(false)
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const [layoutVersion, setLayoutVersion] = useState(0)
@@ -773,6 +774,8 @@ const EditorPage: FC = () => {
   }, [updateNodeTextLive])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    isDragOperationRef.current = false
+    
     const target = e.target as HTMLElement
     const isClickOnNode = target.closest('.node') !== null
     const isClickOnInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
@@ -807,6 +810,10 @@ const EditorPage: FC = () => {
   }, [selectNode, startPan, clearSelection, startSelection, selectedNodeIds, viewMode, canvasOffsetX, canvasOffsetY])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (isPanning || isSelecting) {
+      isDragOperationRef.current = true
+    }
+    
     if (isPanning) {
       updatePan(e.clientX, e.clientY)
     } else if (isSelecting) {
@@ -963,10 +970,11 @@ const EditorPage: FC = () => {
           transform: `translate(${canvasOffsetX}px, ${canvasOffsetY}px)`
         }}
         onClick={e => {
-          if (e.target === e.currentTarget && !isPanning && !isSelecting) {
+          if (e.target === e.currentTarget && !isPanning && !isSelecting && !isDragOperationRef.current) {
             clearSelection()
             hideContextMenu()
           }
+          isDragOperationRef.current = false
         }}
       >
         {selectionBoxStyle && (
