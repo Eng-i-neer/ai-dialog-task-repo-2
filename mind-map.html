@@ -2511,14 +2511,19 @@
             
             calculateTreeLayout() {
                 const centerNodes = this.nodes.filter(n => n.isCenter);
-                const nodeHeight = 35;
+                const defaultNodeHeight = 35;
                 const levelHeight = 100;
                 const horizontalGap = 30;
+                
+                const getNodeHeight = (nodeId) => {
+                    const node = this.nodes.find(n => n.id === nodeId);
+                    return node ? (node.actualHeight || defaultNodeHeight) : defaultNodeHeight;
+                };
                 
                 const getSubtreeWidth = (nodeId) => {
                     const node = this.nodes.find(n => n.id === nodeId);
                     if (!node || node.children.length === 0) {
-                        return 150;
+                        return node.actualWidth || 150;
                     }
                     
                     let totalWidth = 0;
@@ -2527,17 +2532,20 @@
                     });
                     totalWidth -= horizontalGap;
                     
-                    return Math.max(150, totalWidth);
+                    const nodeWidth = node.actualWidth || 150;
+                    return Math.max(nodeWidth, totalWidth);
                 };
                 
                 const layoutTreeSubtree = (nodeId, level, startX, allocatedWidth) => {
                     const node = this.nodes.find(n => n.id === nodeId);
                     if (!node) return startX;
                     
+                    const currentNodeWidth = node.actualWidth || 150;
+                    
                     node.y = 50 + level * levelHeight;
                     
                     if (node.children.length === 0) {
-                        node.x = startX + (allocatedWidth - 150) / 2;
+                        node.x = startX + (allocatedWidth - currentNodeWidth) / 2;
                         return startX + allocatedWidth;
                     } else {
                         let childrenTotalWidth = 0;
@@ -2546,10 +2554,11 @@
                         });
                         childrenTotalWidth -= horizontalGap;
                         
-                        const availableWidth = Math.max(150, childrenTotalWidth);
-                        node.x = startX + (availableWidth - 150) / 2;
+                        const availableWidth = Math.max(currentNodeWidth, childrenTotalWidth);
                         
-                        let childX = startX;
+                        node.x = startX + (availableWidth - currentNodeWidth) / 2;
+                        
+                        let childX = startX + (availableWidth - childrenTotalWidth) / 2;
                         node.children.forEach(childId => {
                             const childSubtreeWidth = getSubtreeWidth(childId);
                             layoutTreeSubtree(childId, level + 1, childX, childSubtreeWidth);
@@ -2888,7 +2897,7 @@
                     
                     connections.innerHTML = '';
                     
-                    const nodeHeight = 35;
+                    const defaultNodeHeight = 35;
                     const lineGap = 5;
                     
                     const parentNodes = this.nodes.filter(n => n.children.length > 0);
@@ -2901,39 +2910,115 @@
                         if (childNodes.length === 0) return;
                         
                         const parentActualWidth = parent.actualWidth || 100;
-                        const parentRightX = parent.x + parentActualWidth + lineGap;
-                        const parentCenterY = parent.y + nodeHeight / 2;
+                        const parentActualHeight = parent.actualHeight || defaultNodeHeight;
                         
-                        if (childNodes.length === 1) {
-                            const child = childNodes[0];
-                            const childLeftX = child.x - lineGap;
-                            const childCenterY = child.y + nodeHeight / 2;
-                            
-                            this.drawSingleConnection(
-                                connections,
-                                parentRightX, parentCenterY,
-                                childLeftX, childCenterY
-                            );
+                        let startX, startY;
+                        
+                        if (this.layoutType === 'right') {
+                            startX = parent.x + parentActualWidth + lineGap;
+                            startY = parent.y + parentActualHeight / 2;
                         } else {
-                            childNodes.sort((a, b) => a.y - b.y);
-                            
-                            const firstChildY = childNodes[0].y + nodeHeight / 2;
-                            const lastChildY = childNodes[childNodes.length - 1].y + nodeHeight / 2;
-                            
-                            const firstChildLeftX = childNodes[0].x - lineGap;
-                            
-                            const verticalLineX = firstChildLeftX;
-                            
-                            this.drawLine(connections, parentRightX, parentCenterY, verticalLineX, parentCenterY);
-                            
-                            this.drawLine(connections, verticalLineX, firstChildY, verticalLineX, lastChildY);
-                            
+                            startX = parent.x + parentActualWidth / 2;
+                            startY = parent.y + parentActualHeight + lineGap;
+                        }
+                        
+                        if (this.connectionStyle === 'straight') {
                             childNodes.forEach(child => {
-                                const childCenterY = child.y + nodeHeight / 2;
-                                const childLeftX = child.x - lineGap;
+                                const childActualWidth = child.actualWidth || 100;
+                                const childActualHeight = child.actualHeight || defaultNodeHeight;
+                                let endX, endY;
                                 
-                                this.drawLine(connections, verticalLineX, childCenterY, childLeftX, childCenterY);
+                                if (this.layoutType === 'right') {
+                                    endX = child.x - lineGap;
+                                    endY = child.y + childActualHeight / 2;
+                                } else {
+                                    endX = child.x + childActualWidth / 2;
+                                    endY = child.y - lineGap;
+                                }
+                                
+                                this.drawStraightLine(connections, startX, startY, endX, endY);
                             });
+                        } else if (this.connectionStyle === 'curve') {
+                            childNodes.forEach(child => {
+                                const childActualWidth = child.actualWidth || 100;
+                                const childActualHeight = child.actualHeight || defaultNodeHeight;
+                                let endX, endY;
+                                
+                                if (this.layoutType === 'right') {
+                                    endX = child.x - lineGap;
+                                    endY = child.y + childActualHeight / 2;
+                                } else {
+                                    endX = child.x + childActualWidth / 2;
+                                    endY = child.y - lineGap;
+                                }
+                                
+                                this.drawCurvedLine(connections, startX, startY, endX, endY);
+                            });
+                        } else {
+                            if (childNodes.length === 1) {
+                                const child = childNodes[0];
+                                const childActualWidth = child.actualWidth || 100;
+                                const childActualHeight = child.actualHeight || defaultNodeHeight;
+                                let endX, endY;
+                                
+                                if (this.layoutType === 'right') {
+                                    endX = child.x - lineGap;
+                                    endY = child.y + childActualHeight / 2;
+                                } else {
+                                    endX = child.x + childActualWidth / 2;
+                                    endY = child.y - lineGap;
+                                }
+                                
+                                this.drawRightAngleLine(connections, startX, startY, endX, endY);
+                            } else {
+                                if (this.layoutType === 'right') {
+                                    childNodes.sort((a, b) => a.y - b.y);
+                                    
+                                    const firstChildHeight = childNodes[0].actualHeight || defaultNodeHeight;
+                                    const lastChildHeight = childNodes[childNodes.length - 1].actualHeight || defaultNodeHeight;
+                                    
+                                    const firstChildY = childNodes[0].y + firstChildHeight / 2;
+                                    const lastChildY = childNodes[childNodes.length - 1].y + lastChildHeight / 2;
+                                    
+                                    const firstChildLeftX = childNodes[0].x - lineGap;
+                                    const verticalLineX = firstChildLeftX;
+                                    
+                                    this.drawLine(connections, startX, startY, verticalLineX, startY);
+                                    
+                                    this.drawLine(connections, verticalLineX, firstChildY, verticalLineX, lastChildY);
+                                    
+                                    childNodes.forEach(child => {
+                                        const childActualHeight = child.actualHeight || defaultNodeHeight;
+                                        const childCenterY = child.y + childActualHeight / 2;
+                                        const childLeftX = child.x - lineGap;
+                                        
+                                        this.drawLine(connections, verticalLineX, childCenterY, childLeftX, childCenterY);
+                                    });
+                                } else {
+                                    childNodes.sort((a, b) => a.x - b.x);
+                                    
+                                    const firstChildWidth = childNodes[0].actualWidth || 100;
+                                    const lastChildWidth = childNodes[childNodes.length - 1].actualWidth || 100;
+                                    
+                                    const firstChildX = childNodes[0].x + firstChildWidth / 2;
+                                    const lastChildX = childNodes[childNodes.length - 1].x + lastChildWidth / 2;
+                                    
+                                    const firstChildTopY = childNodes[0].y - lineGap;
+                                    const horizontalLineY = firstChildTopY;
+                                    
+                                    this.drawLine(connections, startX, startY, startX, horizontalLineY);
+                                    
+                                    this.drawLine(connections, firstChildX, horizontalLineY, lastChildX, horizontalLineY);
+                                    
+                                    childNodes.forEach(child => {
+                                        const childActualWidth = child.actualWidth || 100;
+                                        const childCenterX = child.x + childActualWidth / 2;
+                                        const childTopY = child.y - lineGap;
+                                        
+                                        this.drawLine(connections, childCenterX, horizontalLineY, childCenterX, childTopY);
+                                    });
+                                }
+                            }
                         }
                     });
                 } catch (error) {
@@ -2949,13 +3034,56 @@
                 connections.appendChild(path);
             }
             
-            drawSingleConnection(connections, x1, y1, x2, y2) {
-                const midX = (x1 + x2) / 2;
+            drawStraightLine(connections, x1, y1, x2, y2) {
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-                const pathData = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+                const pathData = `M ${x1} ${y1} L ${x2} ${y2}`;
                 path.setAttribute('d', pathData);
                 path.setAttribute('class', 'connection-line');
                 connections.appendChild(path);
+            }
+            
+            drawCurvedLine(connections, x1, y1, x2, y2) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                let pathData;
+                
+                if (this.layoutType === 'right') {
+                    const controlX1 = x1 + (x2 - x1) / 2;
+                    const controlY1 = y1;
+                    const controlX2 = x1 + (x2 - x1) / 2;
+                    const controlY2 = y2;
+                    pathData = `M ${x1} ${y1} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${x2} ${y2}`;
+                } else {
+                    const controlX1 = x1;
+                    const controlY1 = y1 + (y2 - y1) / 2;
+                    const controlX2 = x2;
+                    const controlY2 = y2 - (y2 - y1) / 2;
+                    pathData = `M ${x1} ${y1} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${x2} ${y2}`;
+                }
+                
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'connection-line');
+                connections.appendChild(path);
+            }
+            
+            drawRightAngleLine(connections, x1, y1, x2, y2) {
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                let pathData;
+                
+                if (this.layoutType === 'right') {
+                    const midX = (x1 + x2) / 2;
+                    pathData = `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+                } else {
+                    const midY = (y1 + y2) / 2;
+                    pathData = `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+                }
+                
+                path.setAttribute('d', pathData);
+                path.setAttribute('class', 'connection-line');
+                connections.appendChild(path);
+            }
+            
+            drawSingleConnection(connections, x1, y1, x2, y2) {
+                this.drawRightAngleLine(connections, x1, y1, x2, y2);
             }
         }
         
