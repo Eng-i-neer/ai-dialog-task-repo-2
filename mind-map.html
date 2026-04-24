@@ -2515,15 +2515,15 @@
                 const levelHeight = 100;
                 const horizontalGap = 30;
                 
-                const getNodeHeight = (nodeId) => {
+                const getNodeWidth = (nodeId) => {
                     const node = this.nodes.find(n => n.id === nodeId);
-                    return node ? (node.actualHeight || defaultNodeHeight) : defaultNodeHeight;
+                    return node ? (node.actualWidth || 150) : 150;
                 };
                 
                 const getSubtreeWidth = (nodeId) => {
                     const node = this.nodes.find(n => n.id === nodeId);
                     if (!node || node.children.length === 0) {
-                        return node.actualWidth || 150;
+                        return getNodeWidth(nodeId);
                     }
                     
                     let totalWidth = 0;
@@ -2532,21 +2532,25 @@
                     });
                     totalWidth -= horizontalGap;
                     
-                    const nodeWidth = node.actualWidth || 150;
+                    const nodeWidth = getNodeWidth(nodeId);
                     return Math.max(nodeWidth, totalWidth);
                 };
                 
-                const layoutTreeSubtree = (nodeId, level, startX, allocatedWidth) => {
+                const getSubtreeCenters = (nodeId, level, startX, nodeCenters, subtreeLefts, subtreeRights) => {
                     const node = this.nodes.find(n => n.id === nodeId);
                     if (!node) return startX;
                     
-                    const currentNodeWidth = node.actualWidth || 150;
+                    const currentNodeWidth = getNodeWidth(nodeId);
+                    const subtreeWidth = getSubtreeWidth(nodeId);
                     
                     node.y = 50 + level * levelHeight;
                     
                     if (node.children.length === 0) {
-                        node.x = startX + (allocatedWidth - currentNodeWidth) / 2;
-                        return startX + allocatedWidth;
+                        node.x = startX + (subtreeWidth - currentNodeWidth) / 2;
+                        nodeCenters[nodeId] = node.x + currentNodeWidth / 2;
+                        subtreeLefts[nodeId] = startX;
+                        subtreeRights[nodeId] = startX + subtreeWidth;
+                        return startX + subtreeWidth;
                     } else {
                         let childrenTotalWidth = 0;
                         node.children.forEach(childId => {
@@ -2556,23 +2560,44 @@
                         
                         const availableWidth = Math.max(currentNodeWidth, childrenTotalWidth);
                         
-                        node.x = startX + (availableWidth - currentNodeWidth) / 2;
-                        
                         let childX = startX + (availableWidth - childrenTotalWidth) / 2;
+                        
                         node.children.forEach(childId => {
                             const childSubtreeWidth = getSubtreeWidth(childId);
-                            layoutTreeSubtree(childId, level + 1, childX, childSubtreeWidth);
+                            getSubtreeCenters(childId, level + 1, childX, nodeCenters, subtreeLefts, subtreeRights);
                             childX += childSubtreeWidth + horizontalGap;
                         });
+                        
+                        const firstChild = this.nodes.find(n => n.id === node.children[0]);
+                        const lastChild = this.nodes.find(n => n.id === node.children[node.children.length - 1]);
+                        
+                        if (firstChild && lastChild) {
+                            const firstChildCenter = nodeCenters[node.children[0]];
+                            const lastChildCenter = nodeCenters[node.children[node.children.length - 1]];
+                            
+                            const childrenCenterX = (firstChildCenter + lastChildCenter) / 2;
+                            
+                            node.x = childrenCenterX - currentNodeWidth / 2;
+                        } else {
+                            node.x = startX + (availableWidth - currentNodeWidth) / 2;
+                        }
+                        
+                        nodeCenters[nodeId] = node.x + currentNodeWidth / 2;
+                        subtreeLefts[nodeId] = startX;
+                        subtreeRights[nodeId] = startX + availableWidth;
                         
                         return startX + availableWidth;
                     }
                 };
                 
+                const nodeCenters = {};
+                const subtreeLefts = {};
+                const subtreeRights = {};
+                
                 let currentX = 50;
                 centerNodes.forEach(centerNode => {
                     const subtreeWidth = getSubtreeWidth(centerNode.id);
-                    layoutTreeSubtree(centerNode.id, 0, currentX, subtreeWidth);
+                    getSubtreeCenters(centerNode.id, 0, currentX, nodeCenters, subtreeLefts, subtreeRights);
                     currentX += subtreeWidth + 150;
                 });
             }
@@ -2990,9 +3015,9 @@
                                     childNodes.forEach(child => {
                                         const childActualHeight = child.actualHeight || defaultNodeHeight;
                                         const childCenterY = child.y + childActualHeight / 2;
-                                        const childLeftX = child.x - lineGap;
+                                        const childLeftEdge = child.x;
                                         
-                                        this.drawLine(connections, verticalLineX, childCenterY, childLeftX, childCenterY);
+                                        this.drawLine(connections, verticalLineX, childCenterY, childLeftEdge, childCenterY);
                                     });
                                 } else {
                                     childNodes.sort((a, b) => a.x - b.x);
@@ -3013,9 +3038,9 @@
                                     childNodes.forEach(child => {
                                         const childActualWidth = child.actualWidth || 100;
                                         const childCenterX = child.x + childActualWidth / 2;
-                                        const childTopY = child.y - lineGap;
+                                        const childTopEdge = child.y;
                                         
-                                        this.drawLine(connections, childCenterX, horizontalLineY, childCenterX, childTopY);
+                                        this.drawLine(connections, childCenterX, horizontalLineY, childCenterX, childTopEdge);
                                     });
                                 }
                             }
