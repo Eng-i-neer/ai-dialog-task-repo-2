@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo, useLayoutEffect } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useEditorStore } from '../store/store'
 import { getMindMap, createMindMap, updateMindMap } from '../services/api'
@@ -29,9 +29,10 @@ const EditorPage: FC = () => {
   const navigate = useNavigate()
   
   const containerRef = useRef<HTMLDivElement>(null)
-  const [nodeRefs, setNodeRefs] = useState<Map<number, HTMLDivElement>>(new Map())
+  const nodeRefs = useRef<Map<number, HTMLDivElement>>(new Map())
   const [isSaving, setIsSaving] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [layoutVersion, setLayoutVersion] = useState(0)
   
   const {
     nodes,
@@ -75,7 +76,7 @@ const EditorPage: FC = () => {
     return () => {
       hideContextMenu()
     }
-  }, [id, newMindMap, hideContextMenu])
+  }, [id])
 
   const loadMindmap = useCallback(async (mindmapId: number) => {
     setIsLoading(true)
@@ -89,7 +90,7 @@ const EditorPage: FC = () => {
     } finally {
       setIsLoading(false)
     }
-  }, [setCurrentMindmap, newMindMap])
+  }, [])
 
   const handleSave = useCallback(async () => {
     if (nodes.length === 0) {
@@ -127,7 +128,7 @@ const EditorPage: FC = () => {
     } finally {
       setIsSaving(false)
     }
-  }, [nodes, layoutType, connectionStyle, fontFamily, currentMindmapId, currentMindmapName, setCurrentMindmap, id, navigate])
+  }, [nodes, layoutType, connectionStyle, fontFamily, currentMindmapId, currentMindmapName, id, navigate])
 
   const handleAddChildFromContextMenu = useCallback(() => {
     if (contextMenuNodeId !== null) {
@@ -306,19 +307,21 @@ const EditorPage: FC = () => {
 
   const handleNodeRef = useCallback((nodeId: number, element: HTMLDivElement | null) => {
     if (element) {
-      setNodeRefs(prev => new Map(prev).set(nodeId, element))
+      nodeRefs.current.set(nodeId, element)
+    } else {
+      nodeRefs.current.delete(nodeId)
     }
   }, [])
 
   const getNodeHeight = useCallback((nodeId: number) => {
-    const ref = nodeRefs.get(nodeId)
+    const ref = nodeRefs.current.get(nodeId)
     return ref ? ref.offsetHeight : DEFAULT_NODE_HEIGHT
-  }, [nodeRefs])
+  }, [])
 
   const getNodeWidth = useCallback((nodeId: number) => {
-    const ref = nodeRefs.get(nodeId)
+    const ref = nodeRefs.current.get(nodeId)
     return ref ? ref.offsetWidth : DEFAULT_NODE_WIDTH
-  }, [nodeRefs])
+  }, [])
 
   const getSubtreeHeight = useCallback((nodeId: number, nodesList: MindMapNode[]): number => {
     const node = nodesList.find(n => n.id === nodeId)
@@ -521,7 +524,15 @@ const EditorPage: FC = () => {
     }
   }, [layoutType, calculateRightLayout, calculateTreeLayout])
 
-  const positionedNodes = calculateLayout(nodes)
+  const positionedNodes = useMemo(() => {
+    return calculateLayout(nodes)
+  }, [calculateLayout, nodes, layoutVersion])
+
+  useLayoutEffect(() => {
+    if (nodes.length > 0) {
+      setLayoutVersion(prev => prev + 1)
+    }
+  }, [nodes.length])
 
   const drawStraightLine = (startX: number, startY: number, endX: number, endY: number): string => {
     return `M ${startX} ${startY} L ${endX} ${endY}`
@@ -543,7 +554,7 @@ const EditorPage: FC = () => {
     }
   }
 
-  const renderConnections = useCallback(() => {
+  const connectionPaths = useMemo(() => {
     const paths: { d: string }[] = []
     
     const parentNodes = positionedNodes.filter(n => n.children.length > 0)
@@ -677,9 +688,7 @@ const EditorPage: FC = () => {
     return paths
   }, [positionedNodes, layoutType, connectionStyle, getNodeWidth, getNodeHeight])
 
-  const connectionPaths = renderConnections()
-
-  const getContainerSize = useCallback(() => {
+  const containerSize = useMemo(() => {
     let maxX = 0
     let maxY = 0
     
@@ -695,8 +704,6 @@ const EditorPage: FC = () => {
       height: Math.max(maxY, 600)
     }
   }, [positionedNodes, getNodeWidth, getNodeHeight])
-
-  const containerSize = getContainerSize()
 
   const handleContentBlur = useCallback((nodeId: number, element: HTMLElement) => {
     const node = nodes.find(n => n.id === nodeId)
@@ -863,13 +870,6 @@ const EditorPage: FC = () => {
                 onBlur={e => {
                   handleContentBlur(node.id, e.target)
                 }}
-                onInput={e => {
-                  const target = e.target as HTMLElement
-                  const updatedNodes = nodes.map(n =>
-                    n.id === node.id ? { ...n, text: target.textContent || '' } : n
-                  )
-                  reLayout(updatedNodes)
-                }}
                 onKeyDown={e => {
                   if (e.key === 'Escape') {
                     e.preventDefault()
@@ -915,10 +915,6 @@ const EditorPage: FC = () => {
       )}
     </div>
   )
-}
-
-function reLayout(updatedNodes: MindMapNode[]) {
-  useEditorStore.setState({ nodes: updatedNodes })
 }
 
 export default EditorPage
