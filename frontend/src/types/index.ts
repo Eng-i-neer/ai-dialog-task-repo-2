@@ -10,7 +10,12 @@ export interface MindMapNode {
   nodeType: 'task' | 'text'
   actualWidth?: number
   actualHeight?: number
+  fontSize?: number
+  fontWeight?: 'normal' | 'bold'
+  textDecoration?: TextDecoration
 }
+
+export type TextDecoration = 'none' | 'underline' | 'line-through' | 'underline line-through'
 
 export interface MindMapData {
   nodes: MindMapNode[]
@@ -31,7 +36,15 @@ export interface MindMapItem {
   updated_at: string
 }
 
+export interface SelectionBox {
+  startX: number
+  startY: number
+  endX: number
+  endY: number
+}
+
 export type LayoutType = 'right' | 'tree'
 export type ConnectionStyle = 'curve' | 'right-angle' | 'straight'
 export type NodeType = 'task' | 'text'
 export type ViewMode = 'mindmap' | 'kanban'
+export type PropertyTab = 'style' | 'node'
