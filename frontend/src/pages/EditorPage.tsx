@@ -832,6 +832,12 @@ const EditorPage: FC = () => {
               data-node-id={node.id}
               onClick={e => {
                 e.stopPropagation()
+                if (editingNodeId !== null && editingNodeId !== node.id) {
+                  const activeElement = document.activeElement as HTMLElement | null
+                  if (activeElement && activeElement.closest('.node-content')) {
+                    activeElement.blur()
+                  }
+                }
                 selectNode(node.id)
               }}
               onContextMenu={e => {
@@ -846,6 +852,12 @@ const EditorPage: FC = () => {
                 checked={node.checked}
                 onChange={e => {
                   e.stopPropagation()
+                  if (editingNodeId !== null && editingNodeId !== node.id) {
+                    const activeElement = document.activeElement as HTMLElement | null
+                    if (activeElement && activeElement.closest('.node-content')) {
+                      activeElement.blur()
+                    }
+                  }
                   toggleNodeChecked(node.id)
                 }}
               />
