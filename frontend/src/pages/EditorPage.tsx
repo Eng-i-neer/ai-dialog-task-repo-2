@@ -4,7 +4,7 @@ import { useEditorStore } from '../store/store'
 import { getMindMap, createMindMap, updateMindMap } from '../services/api'
 import toast from 'react-hot-toast'
 import type { FC } from 'react'
-import type { LayoutType, ConnectionStyle, MindMapNode } from '../types'
+import type { LayoutType, ConnectionStyle, MindMapNode, NodeType, ViewMode } from '../types'
 import '../styles/EditorPage.css'
 
 const DEFAULT_NODE_HEIGHT = 35
@@ -47,6 +47,10 @@ const EditorPage: FC = () => {
     currentMindmapName,
     canUndo,
     canRedo,
+    viewMode,
+    canvasOffsetX,
+    canvasOffsetY,
+    isPanning,
     addCenterNode,
     addChildNode,
     deleteNode,
@@ -63,7 +67,12 @@ const EditorPage: FC = () => {
     setCurrentMindmap,
     newMindMap,
     undo,
-    redo
+    redo,
+    setNodeType,
+    setViewMode,
+    startPan,
+    updatePan,
+    endPan
   } = useEditorStore()
 
   useEffect(() => {
@@ -104,7 +113,10 @@ const EditorPage: FC = () => {
       nextNodeId: useEditorStore.getState().nextNodeId,
       layoutType,
       connectionStyle,
-      fontFamily
+      fontFamily,
+      viewMode,
+      canvasOffsetX,
+      canvasOffsetY
     }
     
     try {
@@ -128,7 +140,7 @@ const EditorPage: FC = () => {
     } finally {
       setIsSaving(false)
     }
-  }, [nodes, layoutType, connectionStyle, fontFamily, currentMindmapId, currentMindmapName, id, navigate])
+  }, [nodes, layoutType, connectionStyle, fontFamily, currentMindmapId, currentMindmapName, id, navigate, viewMode, canvasOffsetX, canvasOffsetY])
 
   const handleAddChildFromContextMenu = useCallback(() => {
     if (contextMenuNodeId !== null) {
@@ -143,6 +155,17 @@ const EditorPage: FC = () => {
     }
     hideContextMenu()
   }, [contextMenuNodeId, deleteNode, hideContextMenu])
+
+  const handleToggleNodeType = useCallback(() => {
+    if (contextMenuNodeId !== null) {
+      const node = nodes.find(n => n.id === contextMenuNodeId)
+      if (node) {
+        const newType: NodeType = node.nodeType === 'task' ? 'text' : 'task'
+        setNodeType(contextMenuNodeId, newType)
+      }
+    }
+    hideContextMenu()
+  }, [contextMenuNodeId, nodes, setNodeType, hideContextMenu])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -714,6 +737,58 @@ const EditorPage: FC = () => {
     }
   }, [nodes, updateNodeText, stopEditing])
 
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (e.target === e.currentTarget) {
+      e.preventDefault()
+      startPan(e.clientX, e.clientY)
+    }
+  }, [startPan])
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    updatePan(e.clientX, e.clientY)
+  }, [updatePan])
+
+  const handleMouseUp = useCallback(() => {
+    endPan()
+  }, [endPan])
+
+  const contextMenuNode = useMemo(() => {
+    if (contextMenuNodeId === null) return null
+    return nodes.find(n => n.id === contextMenuNodeId)
+  }, [contextMenuNodeId, nodes])
+
+  const buildKanbanTree = useCallback(() => {
+    const centerNodes = nodes.filter(n => n.isCenter)
+    
+    const buildColumn = (node: MindMapNode): { node: MindMapNode; children: MindMapNode[] }[] => {
+      const result: { node: MindMapNode; children: MindMapNode[] }[] = []
+      
+      const addNode = (n: MindMapNode, level: number) => {
+        while (result.length <= level) {
+          result.push({ node: null as unknown as MindMapNode, children: [] })
+        }
+        
+        if (level === 0) {
+          result[level].node = n
+        } else {
+          result[level].children.push(n)
+        }
+        
+        n.children.forEach(childId => {
+          const child = nodes.find(c => c.id === childId)
+          if (child) {
+            addNode(child, level + 1)
+          }
+        })
+      }
+      
+      addNode(node, 0)
+      return result
+    }
+    
+    return centerNodes.map(center => buildColumn(center))
+  }, [nodes])
+
   if (isLoading) {
     return (
       <div className="editor-page">
@@ -721,6 +796,340 @@ const EditorPage: FC = () => {
           <div className="loading-icon">⏳</div>
           <div className="loading-text">加载中...</div>
         </div>
+      </div>
+    )
+  }
+
+  const renderMindMapView = () => (
+    <div 
+      className="mindmap-container" 
+      ref={containerRef}
+      onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseUp={handleMouseUp}
+      onMouseLeave={handleMouseUp}
+      style={{ cursor: isPanning ? 'grabbing' : 'grab' }}
+    >
+      <div 
+        className="mindmap-canvas"
+        style={{ 
+          width: containerSize.width, 
+          height: containerSize.height,
+          transform: `translate(${canvasOffsetX}px, ${canvasOffsetY}px)`
+        }}
+        onClick={e => {
+          if (e.target === e.currentTarget) {
+            selectNode(null)
+            hideContextMenu()
+          }
+        }}
+      >
+        <svg 
+          className="connections-svg"
+          width={containerSize.width}
+          height={containerSize.height}
+        >
+          {connectionPaths.map((path, index) => (
+            <path 
+              key={index} 
+              d={path.d} 
+              className="connection-line"
+            />
+          ))}
+        </svg>
+        
+        {positionedNodes.map(node => (
+          <div
+            key={node.id}
+            ref={el => handleNodeRef(node.id, el)}
+            className={`node ${selectedNodeId === node.id ? 'selected' : ''} ${node.nodeType === 'text' ? 'node-text-type' : ''}`}
+            style={{
+              left: node.x,
+              top: node.y,
+              fontFamily: fontFamily
+            }}
+            data-node-id={node.id}
+            onClick={e => {
+              e.stopPropagation()
+              if (editingNodeId !== null && editingNodeId !== node.id) {
+                const editingElement = document.querySelector(
+                  `[data-node-id="${editingNodeId}"] .node-content`
+                ) as HTMLElement | null
+                if (editingElement) {
+                  editingElement.blur()
+                }
+              }
+              selectNode(node.id)
+            }}
+            onContextMenu={e => {
+              e.preventDefault()
+              e.stopPropagation()
+              showContextMenu(node.id, e.clientX, e.clientY)
+            }}
+          >
+            {node.nodeType === 'task' && (
+              <input
+                type="checkbox"
+                className={`node-checkbox ${node.checked ? 'checked' : ''}`}
+                checked={node.checked}
+                onChange={e => {
+                  e.stopPropagation()
+                  if (editingNodeId !== null && editingNodeId !== node.id) {
+                    const editingElement = document.querySelector(
+                      `[data-node-id="${editingNodeId}"] .node-content`
+                    ) as HTMLElement | null
+                    if (editingElement) {
+                      editingElement.blur()
+                    }
+                  }
+                  toggleNodeChecked(node.id)
+                }}
+              />
+            )}
+            <div
+              className="node-content"
+              contentEditable={true}
+              suppressContentEditableWarning={true}
+              onDoubleClick={e => {
+                e.stopPropagation()
+                startEditing(node.id)
+                setTimeout(() => {
+                  const range = document.createRange()
+                  range.selectNodeContents(e.currentTarget)
+                  const selection = window.getSelection()
+                  selection?.removeAllRanges()
+                  selection?.addRange(range)
+                }, 10)
+              }}
+              onFocus={() => {
+                startEditing(node.id)
+              }}
+              onBlur={e => {
+                handleContentBlur(node.id, e.target)
+              }}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  e.currentTarget.blur()
+                }
+                if (e.key === 'Enter' && e.ctrlKey) {
+                  e.preventDefault()
+                  handleContentBlur(node.id, e.currentTarget)
+                }
+              }}
+            >
+              {node.text}
+            </div>
+          </div>
+        ))}
+        
+        {positionedNodes.length === 0 && (
+          <div className="empty-message">
+            点击工具栏"添加中心节点"开始创建思维导图
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  const renderKanbanView = () => {
+    const kanbanTrees = buildKanbanTree()
+    
+    return (
+      <div className="kanban-container">
+        {kanbanTrees.length === 0 ? (
+          <div className="empty-message">
+            点击工具栏"添加中心节点"开始创建思维导图
+          </div>
+        ) : (
+          kanbanTrees.map((columns, treeIndex) => (
+            <div key={treeIndex} className="kanban-tree">
+              {columns.map((column, level) => (
+                <div key={level} className="kanban-column">
+                  <div className="kanban-column-header">
+                    {level === 0 ? '中心节点' : `第 ${level} 层`}
+                  </div>
+                  {level === 0 && column.node ? (
+                    <div
+                      key={column.node.id}
+                      className={`kanban-card ${selectedNodeId === column.node.id ? 'selected' : ''} ${column.node.nodeType === 'text' ? 'node-text-type' : ''}`}
+                      style={{ fontFamily: fontFamily }}
+                      data-node-id={column.node.id}
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (editingNodeId !== null && editingNodeId !== column.node!.id) {
+                          const editingElement = document.querySelector(
+                            `[data-node-id="${editingNodeId}"] .kanban-card-content`
+                          ) as HTMLElement | null
+                          if (editingElement) {
+                            editingElement.blur()
+                          }
+                        }
+                        selectNode(column.node!.id)
+                      }}
+                      onContextMenu={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        showContextMenu(column.node!.id, e.clientX, e.clientY)
+                      }}
+                    >
+                      {column.node.nodeType === 'task' && (
+                        <input
+                          type="checkbox"
+                          className={`node-checkbox ${column.node.checked ? 'checked' : ''}`}
+                          checked={column.node.checked}
+                          onChange={e => {
+                            e.stopPropagation()
+                            if (editingNodeId !== null && editingNodeId !== column.node!.id) {
+                              const editingElement = document.querySelector(
+                                `[data-node-id="${editingNodeId}"] .kanban-card-content`
+                              ) as HTMLElement | null
+                              if (editingElement) {
+                                editingElement.blur()
+                              }
+                            }
+                            toggleNodeChecked(column.node!.id)
+                          }}
+                        />
+                      )}
+                      <div
+                        className="kanban-card-content"
+                        contentEditable={true}
+                        suppressContentEditableWarning={true}
+                        onDoubleClick={e => {
+                          e.stopPropagation()
+                          startEditing(column.node!.id)
+                          setTimeout(() => {
+                            const range = document.createRange()
+                            range.selectNodeContents(e.currentTarget)
+                            const selection = window.getSelection()
+                            selection?.removeAllRanges()
+                            selection?.addRange(range)
+                          }, 10)
+                        }}
+                        onFocus={() => {
+                          startEditing(column.node!.id)
+                        }}
+                        onBlur={e => {
+                          handleContentBlur(column.node!.id, e.target)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            e.currentTarget.blur()
+                          }
+                          if (e.key === 'Enter' && e.ctrlKey) {
+                            e.preventDefault()
+                            handleContentBlur(column.node!.id, e.currentTarget)
+                          }
+                        }}
+                      >
+                        {column.node.text}
+                      </div>
+                      <button
+                        className="kanban-add-btn"
+                        onClick={e => {
+                          e.stopPropagation()
+                          addChildNode(column.node!.id)
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ) : null}
+                  {level > 0 && column.children.map(child => (
+                    <div
+                      key={child.id}
+                      className={`kanban-card ${selectedNodeId === child.id ? 'selected' : ''} ${child.nodeType === 'text' ? 'node-text-type' : ''}`}
+                      style={{ fontFamily: fontFamily }}
+                      data-node-id={child.id}
+                      onClick={e => {
+                        e.stopPropagation()
+                        if (editingNodeId !== null && editingNodeId !== child.id) {
+                          const editingElement = document.querySelector(
+                            `[data-node-id="${editingNodeId}"] .kanban-card-content`
+                          ) as HTMLElement | null
+                          if (editingElement) {
+                            editingElement.blur()
+                          }
+                        }
+                        selectNode(child.id)
+                      }}
+                      onContextMenu={e => {
+                        e.preventDefault()
+                        e.stopPropagation()
+                        showContextMenu(child.id, e.clientX, e.clientY)
+                      }}
+                    >
+                      {child.nodeType === 'task' && (
+                        <input
+                          type="checkbox"
+                          className={`node-checkbox ${child.checked ? 'checked' : ''}`}
+                          checked={child.checked}
+                          onChange={e => {
+                            e.stopPropagation()
+                            if (editingNodeId !== null && editingNodeId !== child.id) {
+                              const editingElement = document.querySelector(
+                                `[data-node-id="${editingNodeId}"] .kanban-card-content`
+                              ) as HTMLElement | null
+                              if (editingElement) {
+                                editingElement.blur()
+                              }
+                            }
+                            toggleNodeChecked(child.id)
+                          }}
+                        />
+                      )}
+                      <div
+                        className="kanban-card-content"
+                        contentEditable={true}
+                        suppressContentEditableWarning={true}
+                        onDoubleClick={e => {
+                          e.stopPropagation()
+                          startEditing(child.id)
+                          setTimeout(() => {
+                            const range = document.createRange()
+                            range.selectNodeContents(e.currentTarget)
+                            const selection = window.getSelection()
+                            selection?.removeAllRanges()
+                            selection?.addRange(range)
+                          }, 10)
+                        }}
+                        onFocus={() => {
+                          startEditing(child.id)
+                        }}
+                        onBlur={e => {
+                          handleContentBlur(child.id, e.target)
+                        }}
+                        onKeyDown={e => {
+                          if (e.key === 'Escape') {
+                            e.preventDefault()
+                            e.currentTarget.blur()
+                          }
+                          if (e.key === 'Enter' && e.ctrlKey) {
+                            e.preventDefault()
+                            handleContentBlur(child.id, e.currentTarget)
+                          }
+                        }}
+                      >
+                        {child.text}
+                      </div>
+                      <button
+                        className="kanban-add-btn"
+                        onClick={e => {
+                          e.stopPropagation()
+                          addChildNode(child.id)
+                        }}
+                      >
+                        +
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          ))
+        )}
       </div>
     )
   }
@@ -759,27 +1168,42 @@ const EditorPage: FC = () => {
         <div className="toolbar-separator" />
         
         <div className="select-group">
-          <label>布局：</label>
+          <label>视图：</label>
           <select 
-            value={layoutType}
-            onChange={e => setLayoutType(e.target.value as LayoutType)}
+            value={viewMode}
+            onChange={e => setViewMode(e.target.value as ViewMode)}
           >
-            <option value="right">右向布局</option>
-            <option value="tree">树状图布局</option>
+            <option value="mindmap">思维导图</option>
+            <option value="kanban">看板</option>
           </select>
         </div>
         
-        <div className="select-group">
-          <label>连线：</label>
-          <select 
-            value={connectionStyle}
-            onChange={e => setConnectionStyle(e.target.value as ConnectionStyle)}
-          >
-            <option value="curve">曲线</option>
-            <option value="right-angle">直角</option>
-            <option value="straight">直线</option>
-          </select>
-        </div>
+        {viewMode === 'mindmap' && (
+          <>
+            <div className="select-group">
+              <label>布局：</label>
+              <select 
+                value={layoutType}
+                onChange={e => setLayoutType(e.target.value as LayoutType)}
+              >
+                <option value="right">右向布局</option>
+                <option value="tree">树状图布局</option>
+              </select>
+            </div>
+            
+            <div className="select-group">
+              <label>连线：</label>
+              <select 
+                value={connectionStyle}
+                onChange={e => setConnectionStyle(e.target.value as ConnectionStyle)}
+              >
+                <option value="curve">曲线</option>
+                <option value="right-angle">直角</option>
+                <option value="straight">直线</option>
+              </select>
+            </div>
+          </>
+        )}
         
         <div className="select-group">
           <label>字体：</label>
@@ -794,121 +1218,7 @@ const EditorPage: FC = () => {
         </div>
       </div>
       
-      <div className="mindmap-container" ref={containerRef}>
-        <div 
-          className="mindmap-canvas"
-          style={{ width: containerSize.width, height: containerSize.height }}
-          onClick={e => {
-            if (e.target === e.currentTarget) {
-              selectNode(null)
-              hideContextMenu()
-            }
-          }}
-        >
-          <svg 
-            className="connections-svg"
-            width={containerSize.width}
-            height={containerSize.height}
-          >
-            {connectionPaths.map((path, index) => (
-              <path 
-                key={index} 
-                d={path.d} 
-                className="connection-line"
-              />
-            ))}
-          </svg>
-          
-          {positionedNodes.map(node => (
-            <div
-              key={node.id}
-              ref={el => handleNodeRef(node.id, el)}
-              className={`node ${selectedNodeId === node.id ? 'selected' : ''}`}
-              style={{
-                left: node.x,
-                top: node.y,
-                fontFamily: fontFamily
-              }}
-              data-node-id={node.id}
-              onClick={e => {
-                e.stopPropagation()
-                if (editingNodeId !== null && editingNodeId !== node.id) {
-                  const editingElement = document.querySelector(
-                    `[data-node-id="${editingNodeId}"] .node-content`
-                  ) as HTMLElement | null
-                  if (editingElement) {
-                    editingElement.blur()
-                  }
-                }
-                selectNode(node.id)
-              }}
-              onContextMenu={e => {
-                e.preventDefault()
-                e.stopPropagation()
-                showContextMenu(node.id, e.clientX, e.clientY)
-              }}
-            >
-              <input
-                type="checkbox"
-                className={`node-checkbox ${node.checked ? 'checked' : ''}`}
-                checked={node.checked}
-                onChange={e => {
-                  e.stopPropagation()
-                  if (editingNodeId !== null && editingNodeId !== node.id) {
-                    const editingElement = document.querySelector(
-                      `[data-node-id="${editingNodeId}"] .node-content`
-                    ) as HTMLElement | null
-                    if (editingElement) {
-                      editingElement.blur()
-                    }
-                  }
-                  toggleNodeChecked(node.id)
-                }}
-              />
-              <div
-                className="node-content"
-                contentEditable={true}
-                suppressContentEditableWarning={true}
-                onDoubleClick={e => {
-                  e.stopPropagation()
-                  startEditing(node.id)
-                  setTimeout(() => {
-                    const range = document.createRange()
-                    range.selectNodeContents(e.currentTarget)
-                    const selection = window.getSelection()
-                    selection?.removeAllRanges()
-                    selection?.addRange(range)
-                  }, 10)
-                }}
-                onFocus={() => {
-                  startEditing(node.id)
-                }}
-                onBlur={e => {
-                  handleContentBlur(node.id, e.target)
-                }}
-                onKeyDown={e => {
-                  if (e.key === 'Escape') {
-                    e.preventDefault()
-                    e.currentTarget.blur()
-                  }
-                  if (e.key === 'Enter' && e.ctrlKey) {
-                    e.preventDefault()
-                    handleContentBlur(node.id, e.currentTarget)
-                  }
-                }}
-              >
-                {node.text}
-              </div>
-            </div>
-          ))}
-          
-          {positionedNodes.length === 0 && (
-            <div className="empty-message">
-              点击工具栏"添加中心节点"开始创建思维导图
-            </div>
-          )}
-        </div>
-      </div>
+      {viewMode === 'mindmap' ? renderMindMapView() : renderKanbanView()}
       
       {contextMenuPosition && contextMenuNodeId !== null && (
         <div 
@@ -920,6 +1230,12 @@ const EditorPage: FC = () => {
             onClick={handleAddChildFromContextMenu}
           >
             添加子节点
+          </div>
+          <div 
+            className="context-menu-item"
+            onClick={handleToggleNodeType}
+          >
+            切换为{contextMenuNode?.nodeType === 'task' ? '文本框' : '任务框'}
           </div>
           <div 
             className="context-menu-item delete"

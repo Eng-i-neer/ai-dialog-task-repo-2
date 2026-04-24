@@ -7,6 +7,7 @@ export interface MindMapNode {
   isCenter: boolean
   checked: boolean
   parentId: number | null
+  nodeType: 'task' | 'text'
   actualWidth?: number
   actualHeight?: number
 }
@@ -17,6 +18,9 @@ export interface MindMapData {
   layoutType: 'right' | 'tree'
   connectionStyle: 'curve' | 'right-angle' | 'straight'
   fontFamily: string
+  viewMode: 'mindmap' | 'kanban'
+  canvasOffsetX: number
+  canvasOffsetY: number
 }
 
 export interface MindMapItem {
@@ -29,3 +33,5 @@ export interface MindMapItem {
 
 export type LayoutType = 'right' | 'tree'
 export type ConnectionStyle = 'curve' | 'right-angle' | 'straight'
+export type NodeType = 'task' | 'text'
+export type ViewMode = 'mindmap' | 'kanban'

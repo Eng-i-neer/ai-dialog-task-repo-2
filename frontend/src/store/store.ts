@@ -1,5 +1,13 @@
 import { create } from 'zustand'
-import type { MindMapNode, MindMapData, MindMapItem, LayoutType, ConnectionStyle } from '../types'
+import type { 
+  MindMapNode, 
+  MindMapData, 
+  MindMapItem, 
+  LayoutType, 
+  ConnectionStyle,
+  NodeType,
+  ViewMode
+} from '../types'
 
 const DEFAULT_FONT_FAMILY = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif"
 const MAX_HISTORY_SIZE = 50
@@ -14,6 +22,9 @@ interface EditorState extends MindMapData {
   isSaving: boolean
   history: MindMapData[]
   historyIndex: number
+  isPanning: boolean
+  lastMouseX: number
+  lastMouseY: number
   
   addCenterNode: () => void
   addChildNode: (parentId: number) => void
@@ -35,6 +46,12 @@ interface EditorState extends MindMapData {
   redo: () => void
   canUndo: () => boolean
   canRedo: () => boolean
+  setNodeType: (nodeId: number, type: NodeType) => void
+  setViewMode: (mode: ViewMode) => void
+  setCanvasOffset: (x: number, y: number) => void
+  startPan: (x: number, y: number) => void
+  updatePan: (x: number, y: number) => void
+  endPan: () => void
 }
 
 interface ProjectsState {
@@ -54,7 +71,10 @@ export const DEFAULT_EMPTY_DATA: MindMapData = {
   nextNodeId: 1,
   layoutType: 'right',
   connectionStyle: 'curve',
-  fontFamily: DEFAULT_FONT_FAMILY
+  fontFamily: DEFAULT_FONT_FAMILY,
+  viewMode: 'mindmap',
+  canvasOffsetX: 0,
+  canvasOffsetY: 0
 }
 
 export const useEditorStore = create<EditorState>((set, get) => ({
@@ -68,6 +88,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   isSaving: false,
   history: [],
   historyIndex: -1,
+  isPanning: false,
+  lastMouseX: 0,
+  lastMouseY: 0,
 
   saveStateToHistory: () => {
     const state = get()
@@ -76,7 +99,10 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       nextNodeId: state.nextNodeId,
       layoutType: state.layoutType,
       connectionStyle: state.connectionStyle,
-      fontFamily: state.fontFamily
+      fontFamily: state.fontFamily,
+      viewMode: state.viewMode,
+      canvasOffsetX: state.canvasOffsetX,
+      canvasOffsetY: state.canvasOffsetY
     }
     
     const newHistory = state.history.slice(0, state.historyIndex + 1)
@@ -106,7 +132,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         selectedNodeId: null,
         editingNodeId: null,
         contextMenuNodeId: null,
-        contextMenuPosition: null
+        contextMenuPosition: null,
+        isPanning: false
       })
     }
   },
@@ -125,7 +152,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         selectedNodeId: null,
         editingNodeId: null,
         contextMenuNodeId: null,
-        contextMenuPosition: null
+        contextMenuPosition: null,
+        isPanning: false
       })
     }
   },
@@ -152,7 +180,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       children: [],
       isCenter: true,
       checked: false,
-      parentId: null
+      parentId: null,
+      nodeType: 'task'
     }
     
     set({
@@ -177,7 +206,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       children: [],
       isCenter: false,
       checked: false,
-      parentId
+      parentId,
+      nodeType: parentNode.nodeType
     }
     
     const updatedNodes = state.nodes.map(n => 
@@ -305,6 +335,55 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     }
   },
 
+  setNodeType: (nodeId: number, type: NodeType) => {
+    const state = get()
+    const node = state.nodes.find(n => n.id === nodeId)
+    if (!node || node.nodeType === type) return
+    
+    state.saveStateToHistory()
+    
+    const updatedNodes = state.nodes.map(n =>
+      n.id === nodeId ? { ...n, nodeType: type } : n
+    )
+    
+    set({ nodes: updatedNodes })
+  },
+
+  setViewMode: (mode: ViewMode) => {
+    const state = get()
+    if (state.viewMode !== mode) {
+      state.saveStateToHistory()
+      set({ viewMode: mode })
+    }
+  },
+
+  setCanvasOffset: (x: number, y: number) => {
+    set({ canvasOffsetX: x, canvasOffsetY: y })
+  },
+
+  startPan: (x: number, y: number) => {
+    set({ isPanning: true, lastMouseX: x, lastMouseY: y })
+  },
+
+  updatePan: (x: number, y: number) => {
+    const state = get()
+    if (!state.isPanning) return
+    
+    const deltaX = x - state.lastMouseX
+    const deltaY = y - state.lastMouseY
+    
+    set({
+      canvasOffsetX: state.canvasOffsetX + deltaX,
+      canvasOffsetY: state.canvasOffsetY + deltaY,
+      lastMouseX: x,
+      lastMouseY: y
+    })
+  },
+
+  endPan: () => {
+    set({ isPanning: false })
+  },
+
   setCurrentMindmap: (id: number | null, name: string, data?: MindMapData) => {
     if (data) {
       set({
@@ -315,11 +394,15 @@ export const useEditorStore = create<EditorState>((set, get) => ({
         layoutType: data.layoutType,
         connectionStyle: data.connectionStyle,
         fontFamily: data.fontFamily,
+        viewMode: data.viewMode || 'mindmap',
+        canvasOffsetX: data.canvasOffsetX || 0,
+        canvasOffsetY: data.canvasOffsetY || 0,
         selectedNodeId: null,
         editingNodeId: null,
         contextMenuNodeId: null,
         contextMenuPosition: null,
-        history: [{ ...data }],
+        isPanning: false,
+        history: [{ ...data, viewMode: data.viewMode || 'mindmap', canvasOffsetX: data.canvasOffsetX || 0, canvasOffsetY: data.canvasOffsetY || 0 }],
         historyIndex: 0
       })
     } else {
@@ -339,6 +422,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
       contextMenuPosition: null,
       currentMindmapId: null,
       currentMindmapName: '新思维导图',
+      isPanning: false,
       history: [{ ...DEFAULT_EMPTY_DATA }],
       historyIndex: 0
     })
