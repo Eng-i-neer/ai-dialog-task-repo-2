@@ -738,19 +738,27 @@ const EditorPage: FC = () => {
   }, [nodes, updateNodeText, stopEditing])
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      e.preventDefault()
+    const target = e.target as HTMLElement
+    const isClickOnNode = target.closest('.node') !== null
+    const isClickOnInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA'
+    const isContentEditable = target.classList.contains('node-content') || target.classList.contains('kanban-card-content')
+    
+    if (!isClickOnNode && !isClickOnInput && !isContentEditable) {
       startPan(e.clientX, e.clientY)
     }
   }, [startPan])
 
   const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    updatePan(e.clientX, e.clientY)
-  }, [updatePan])
+    if (isPanning) {
+      updatePan(e.clientX, e.clientY)
+    }
+  }, [isPanning, updatePan])
 
   const handleMouseUp = useCallback(() => {
-    endPan()
-  }, [endPan])
+    if (isPanning) {
+      endPan()
+    }
+  }, [isPanning, endPan])
 
   const contextMenuNode = useMemo(() => {
     if (contextMenuNodeId === null) return null
