@@ -833,9 +833,11 @@ const EditorPage: FC = () => {
               onClick={e => {
                 e.stopPropagation()
                 if (editingNodeId !== null && editingNodeId !== node.id) {
-                  const activeElement = document.activeElement as HTMLElement | null
-                  if (activeElement && activeElement.closest('.node-content')) {
-                    activeElement.blur()
+                  const editingElement = document.querySelector(
+                    `[data-node-id="${editingNodeId}"] .node-content`
+                  ) as HTMLElement | null
+                  if (editingElement) {
+                    editingElement.blur()
                   }
                 }
                 selectNode(node.id)
@@ -853,9 +855,11 @@ const EditorPage: FC = () => {
                 onChange={e => {
                   e.stopPropagation()
                   if (editingNodeId !== null && editingNodeId !== node.id) {
-                    const activeElement = document.activeElement as HTMLElement | null
-                    if (activeElement && activeElement.closest('.node-content')) {
-                      activeElement.blur()
+                    const editingElement = document.querySelector(
+                      `[data-node-id="${editingNodeId}"] .node-content`
+                    ) as HTMLElement | null
+                    if (editingElement) {
+                      editingElement.blur()
                     }
                   }
                   toggleNodeChecked(node.id)
