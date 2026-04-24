@@ -4,7 +4,7 @@ import { useEditorStore } from '../store/store'
 import { getMindMap, createMindMap, updateMindMap } from '../services/api'
 import toast from 'react-hot-toast'
 import type { FC } from 'react'
-import type { LayoutType, ConnectionStyle, MindMapNode, NodeType, ViewMode, TextDecoration, SelectionBox, PropertyTab } from '../types'
+import type { LayoutType, ConnectionStyle, MindMapNode, NodeType, ViewMode } from '../types'
 import '../styles/EditorPage.css'
 
 const DEFAULT_NODE_HEIGHT = 35
@@ -86,8 +86,6 @@ const EditorPage: FC = () => {
     updateSelection,
     endSelection,
     setSelectedNodesFontSize,
-    setSelectedNodesFontWeight,
-    setSelectedNodesTextDecoration,
     setSelectedNodesFontFamily,
     toggleBold,
     toggleUnderline,
@@ -921,8 +919,8 @@ const EditorPage: FC = () => {
   const getSelectionBoxStyle = (): React.CSSProperties | null => {
     if (!selectionBox) return null
     
-    const x = Math.min(selectionBox.startX, selectionBox.endX) + canvasOffsetX
-    const y = Math.min(selectionBox.startY, selectionBox.endY) + canvasOffsetY
+    const x = Math.min(selectionBox.startX, selectionBox.endX)
+    const y = Math.min(selectionBox.startY, selectionBox.endY)
     const width = Math.abs(selectionBox.endX - selectionBox.startX)
     const height = Math.abs(selectionBox.endY - selectionBox.startY)
     
