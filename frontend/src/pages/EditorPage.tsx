@@ -1002,6 +1002,7 @@ const EditorPage: FC = () => {
           const isSelected = selectedNodeIds.has(node.id) || selectedNodeId === node.id
           const textDecoration = node.textDecoration || 'none'
           const fontWeight = node.fontWeight || 'normal'
+          const nodeFontFamily = node.fontFamily || fontFamily
           
           return (
             <div
@@ -1011,7 +1012,7 @@ const EditorPage: FC = () => {
               style={{
                 left: node.x,
                 top: node.y,
-                fontFamily: fontFamily,
+                fontFamily: nodeFontFamily,
                 fontSize: node.fontSize ? `${node.fontSize}px` : undefined,
                 fontWeight: fontWeight,
                 textDecoration: textDecoration
@@ -1125,7 +1126,7 @@ const EditorPage: FC = () => {
                       key={column.node.id}
                       className={`kanban-card ${selectedNodeIds.has(column.node.id) ? 'selected' : ''} ${column.node.nodeType === 'text' ? 'node-text-type' : ''}`}
                       style={{ 
-                        fontFamily: fontFamily,
+                        fontFamily: column.node.fontFamily || fontFamily,
                         fontSize: column.node.fontSize ? `${column.node.fontSize}px` : undefined,
                         fontWeight: column.node.fontWeight || 'normal',
                         textDecoration: column.node.textDecoration || 'none'
@@ -1225,7 +1226,7 @@ const EditorPage: FC = () => {
                       key={child.id}
                       className={`kanban-card ${selectedNodeIds.has(child.id) ? 'selected' : ''} ${child.nodeType === 'text' ? 'node-text-type' : ''}`}
                       style={{ 
-                        fontFamily: fontFamily,
+                        fontFamily: child.fontFamily || fontFamily,
                         fontSize: child.fontSize ? `${child.fontSize}px` : undefined,
                         fontWeight: child.fontWeight || 'normal',
                         textDecoration: child.textDecoration || 'none'

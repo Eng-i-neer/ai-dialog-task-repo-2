@@ -13,6 +13,7 @@ export interface MindMapNode {
   fontSize?: number
   fontWeight?: 'normal' | 'bold'
   textDecoration?: TextDecoration
+  fontFamily?: string
 }
 
 export type TextDecoration = 'none' | 'underline' | 'line-through' | 'underline line-through'
